@@ -1,0 +1,113 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Skill Compiler Trace",
+  "description": "Execution trace for the Skill Compiler pipeline",
+  "type": "object",
+  "required": ["skill_name", "invocation_id", "passes", "outcome"],
+  "properties": {
+    "skill_name": {
+      "type": "string",
+      "description": "Name of the compiler skill"
+    },
+    "invocation_id": {
+      "type": "string",
+      "description": "Unique ID for this compilation run"
+    },
+    "source_prompt_hash": {
+      "type": "string",
+      "description": "Hash of the input prompt for deduplication"
+    },
+    "passes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["pass_id", "status"],
+        "properties": {
+          "pass_id": {
+            "type": "string",
+            "enum": ["triage", "analyze", "extract", "design", "generate", "optimize", "validate", "plugin-discovery", "example-generation"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["executed", "skipped", "failed"]
+          },
+          "trigger_reason": {
+            "type": "string",
+            "description": "Why this pass was triggered (or skipped)"
+          },
+          "duration_ms": {
+            "type": "number"
+          },
+          "tokens_in": {
+            "type": "number"
+          },
+          "tokens_out": {
+            "type": "number"
+          },
+          "ir_fields_written": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "IR fields produced by this pass"
+          },
+          "deviation_reason": {
+            "type": "string",
+            "description": "Only when status=failed"
+          }
+        }
+      }
+    },
+    "conditional_passes": {
+      "type": "object",
+      "properties": {
+        "optimize": {
+          "type": "object",
+          "properties": {
+            "triggered": { "type": "boolean" },
+            "trigger_conditions_met": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "plugin_discovery": {
+          "type": "object",
+          "properties": {
+            "triggered": { "type": "boolean" },
+            "plugins_found": { "type": "number" }
+          }
+        },
+        "example_generation": {
+          "type": "object",
+          "properties": {
+            "triggered": { "type": "boolean" },
+            "examples_generated": { "type": "number" }
+          }
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "files_generated": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of generated file paths"
+        },
+        "skill_md_lines": {
+          "type": "number"
+        },
+        "validation_verdict": {
+          "type": "string",
+          "enum": ["pass", "conditional-pass", "fail"]
+        }
+      }
+    },
+    "outcome": {
+      "type": "string",
+      "enum": ["success", "partial", "failure"]
+    },
+    "total_tokens": {
+      "type": "number"
+    },
+    "total_duration_ms": {
+      "type": "number"
+    }
+  }
+}
