@@ -1,7 +1,7 @@
 ---
 name: skill-compiler
 description: "Use when you need to compile, convert, transform, or refactor any existing prompt into a production-grade, reusable AI Skill. Triggers on: 'prompt to skill', 'compile prompt', '把 prompt 变成 skill', '提示词编译', '提示词转技能', 'skill from prompt'. Outputs a complete skill package with modular architecture. Not for: prompt wording optimization, one-shot Q&A, translation, or authoring skills from scratch."
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Skill Compiler
