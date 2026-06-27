@@ -96,6 +96,40 @@
         "validation_verdict": {
           "type": "string",
           "enum": ["pass", "conditional-pass", "fail"]
+        },
+        "evaluation": {
+          "type": "object",
+          "description": "Pass 6 三层评估结果（Layer A 结构 / Layer B IR 一致性 / Layer C 触发质量）",
+          "properties": {
+            "layer_a_structural": {
+              "type": "object",
+              "properties": {
+                "pass_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+                "issues_count": { "type": "number" }
+              }
+            },
+            "layer_b_ir_consistency": {
+              "type": "object",
+              "properties": {
+                "pass_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+                "issues_count": { "type": "number" }
+              }
+            },
+            "layer_c_trigger_quality": {
+              "type": "object",
+              "properties": {
+                "positive_recall": { "type": "number", "minimum": 0, "maximum": 1 },
+                "negative_precision": { "type": "number", "minimum": 0, "maximum": 1 },
+                "trigger_precision": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            },
+            "skill_quality_score": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "综合评分 = structural×0.3 + ir_consistency×0.4 + trigger_precision×0.3"
+            }
+          }
         }
       }
     },

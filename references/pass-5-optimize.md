@@ -1,6 +1,7 @@
 # Pass 5: Optimize — 编译优化
 
 **加载时机：** 📍 执行到 Pass 5 时加载（条件触发）。
+**反模式引用：** AP-02/04/06/07/12 定义见 [anti-patterns.md](anti-patterns.md)
 
 ---
 
@@ -44,7 +45,7 @@
 
 | 检查 | 动作 |
 |------|------|
-| 一个 reference 文件同时被"产出者"和"验证者"读取 | 按信任域拆分（AP-12） |
+| 一个 reference 文件同时被"产出者"和"验证者"读取 | 按信任域拆分 → 见 [anti-patterns.md](anti-patterns.md) **AP-12** |
 | 领域知识与执行逻辑混在同一文件 | 分离：知识 → references/，逻辑 → SKILL.md |
 | 配置硬编码在 prompt 中 | 参数化 → config/ |
 
@@ -54,14 +55,14 @@
 |------|------|
 | 单个文件承担 3+ 不相关职责 | 按职责拆分 |
 | 修改一个功能需要改 3+ 文件 | 重新划界，高内聚低耦合 |
-| God Agent（>= 5 不相关功能） | 拆分为多个 agent（AP-07） |
+| God Agent（>= 5 不相关功能） | 拆分为多个 agent → 见 [anti-patterns.md](anti-patterns.md) **AP-07** |
 
 ### O6 — 拆分检查
 
 | 检查 | 动作 |
 |------|------|
-| agent 同时负责产出和验证 | 拆分为 Producer + Verifier（AP-04） |
-| workflow 无上限循环 | 添加 max_iterations（AP-06） |
+| agent 同时负责产出和验证 | 拆分为 Producer + Verifier → 见 [anti-patterns.md](anti-patterns.md) **AP-04** |
+| workflow 无上限循环 | 添加 max_iterations → 见 [anti-patterns.md](anti-patterns.md) **AP-06** |
 | 所有文件都在根目录 | 按类型分目录 |
 
 ### O7 — 参数化检查

@@ -41,7 +41,7 @@ Source Prompt
 - **条件执行** — 简单 Prompt 跳过 Optimize，不涉及外部能力时跳过 Plugin Discovery
 - **五角色架构审查** — Skill Architect / Knowledge Engineer / Workflow Designer / Prompt Engineer / Software Architect
 - **三层渐进加载** — 生成的 Skill 遵循 L1 触发 / L2 路由 / L3 懒加载分层
-- **自编译验证** — Skill Compiler 自身的 SKILL.md 经过了自己的 Pass 6 审查（364 行 → 113 行）
+- **自编译验证** — Skill Compiler 自身的 SKILL.md 经过了自己的 Pass 6 审查，审查记录见 [docs/self-compilation-audit.md](docs/self-compilation-audit.md)
 
 ---
 
@@ -65,7 +65,7 @@ Source Prompt
 
 ```
 skill-compiler/
-├── SKILL.md                        # 入口 + 路由 manifest（113 行）
+├── SKILL.md                        # 入口 + 路由 manifest（< 150 行）
 ├── README.md                       # 本文件
 ├── references/
 │   ├── pass-1-analyze.md           # Pass 1: 理解 Prompt

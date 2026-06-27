@@ -1,6 +1,6 @@
 ---
 name: skill-compiler
-description: "Use when you need to compile, convert, transform, or refactor any prompt (system prompt, meta-prompt, role prompt, task prompt) into a production-grade, reusable AI Skill. Triggers on: 'prompt to skill', 'compile prompt', 'convert prompt to skill', '把 prompt 变成 skill', '提示词编译', 'skill builder', 'prompt compiler', '提示词转技能', 'meta-skill', 'skill from prompt'. Accepts any prompt as input and outputs a complete skill package with modular architecture."
+description: "Use when you need to compile, convert, transform, or refactor any existing prompt into a production-grade, reusable AI Skill. Triggers on: 'prompt to skill', 'compile prompt', '把 prompt 变成 skill', '提示词编译', '提示词转技能', 'skill from prompt'. Outputs a complete skill package with modular architecture. Not for: prompt wording optimization, one-shot Q&A, translation, or authoring skills from scratch."
 version: 1.0.0
 ---
 
@@ -42,10 +42,10 @@ Source Prompt → [Pass 0: Triage] → [Pass 1: Analyze] → [Pass 2: Extract]
 | **0 Triage** | ✅ 总是 | 判断是否值得编译 | 内联（决策表见下） |
 | **1 Analyze** | ✅ 总是 | 理解 Prompt：目标/输入输出/边界/假设 | 📍 [references/pass-1-analyze.md](references/pass-1-analyze.md) |
 | **2 Extract** | ✅ 总是 | 能力图谱 + 知识清单 + 角色矩阵 | 📍 [references/pass-2-extract.md](references/pass-2-extract.md) |
-| **3 Design** | ✅ 总是 | 架构类型 + 模块拆分 + Workflow + 目录结构 | 📍 [references/pass-3-design.md](references/pass-3-design.md) |
+| **3 Design** | ✅ 总是 | 架构类型 + 模块拆分 + Workflow + 目录结构 + 自测用例派生 | 📍 [references/pass-3-design.md](references/pass-3-design.md) |
 | **4 Generate** | ✅ 总是 | 生成完整 Skill 文件包 | 📍 [references/pass-4-generate.md](references/pass-4-generate.md) |
 | **5 Optimize** | ⚠️ 条件 | Prompt > 500字 / 重复 / multi-agent 时执行 | 📍 [references/pass-5-optimize.md](references/pass-5-optimize.md) |
-| **6 Validate** | ✅ 总是 | 五角色架构审查 | 📍 [references/pass-6-validate.md](references/pass-6-validate.md) |
+| **6 Validate** | ✅ 总是 | 三层评估：结构完整性（A）+ IR 一致性（B）+ 触发质量（C） | 📍 [references/pass-6-validate.md](references/pass-6-validate.md) |
 
 **条件 Pass：**
 
@@ -89,6 +89,11 @@ REJECT 时告知"这不建议做成 skill，因为 X"，并直接完成请求。
 - **Folder Tree** — 生成的目录结构
 - **Passes Executed** — 实际执行的 Pass 列表
 - **Module Dependency Graph** — 核心模块依赖关系
+- **Evaluation Report** — Pass 6 三层评估结果：
+  - Layer A 结构完整性 pass_rate
+  - Layer B IR 一致性 pass_rate（IR 作为 test oracle 验证产出）
+  - Layer C 触发质量 trigger_precision（self_test_cases 静态匹配）
+  - 综合评分 `skill_quality_score`（0-100）
 - **Validation Result** — Pass 6 verdict + issues
 - **Technical Debt** — 已知技术债务
 - **Extension Roadmap** — 未来可扩展方向
@@ -97,11 +102,12 @@ REJECT 时告知"这不建议做成 skill，因为 X"，并直接完成请求。
 
 ## Gotchas / Footguns
 
-1. **不要机械转换 Prompt** — 原 Prompt 不合理时大胆重构，目标是长期价值
-2. **Pass 不是固定流程** — 编译器自主判断需要哪些 Pass
-3. **IR 是中间表示** — Pass 1-3 产出 IR，只有 Pass 4 生成文件
-4. **三层加载** — 生成的 Skill 遵循 L1/L2/L3 分层，SKILL.md < 300 行
-5. **frontmatter 卫生** — 生成的 SKILL.md 只含 `name` + `description`，元数据写 Provenance
+> 以下为已知的编译失败模式和风险点。
+
+1. **AP-11 风险（单轨迹过拟合）** — 不要基于单次编译经验调整哪些 Pass 该执行/跳过。Pass 的触发/跳过条件应基于显式规则（本 SKILL.md 定义的条件），而非"上次编译时我跳过了这个 Pass 所以这次也跳"。批量编译经验归纳后才可调整 Pass 触发策略。
+2. **IR 字段缺失是最常见的失败原因** — LLM 产出 IR 时常遗漏 `capability_graph.primary` 或 `folder_structure`。Pass 3→4 门控必须校验全部必填字段（见 [schemas/ir-schema.json](schemas/ir-schema.json)），缺失时回退而非硬闯 Pass 4。
+3. **Pass 5 条件判断不能只看输入长度** — 即使 Source Prompt < 500 字，生成的文件包中也可能出现重复知识（>= 3 处相同内容）。Pass 5 的触发条件应同时检查"输入长度"和"输出重复度"。
+4. **trace 产出不能省略** — trace-schema.json 定义的执行 trace 是下游消费者（如 SkillForge L4/L5）的契约输入。每次编译必须在 Final Output 中产出 trace。
 
 ---
 
@@ -110,4 +116,3 @@ REJECT 时告知"这不建议做成 skill，因为 X"，并直接完成请求。
 - **Built with:** SkillForge (Full mode)
 - **Source:** User-provided "Prompt → Skill Compiler v1.0" spec, refactored from 16 fixed phases to 6 core + 3 conditional compiler passes
 - **Design decision:** Phase → Compiler Pass model (conditional execution, IR-based)
-- **version:** 1.0.0

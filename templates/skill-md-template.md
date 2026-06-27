@@ -61,7 +61,6 @@ version: 1.0.0
 
 - **Built with:** Skill Compiler v1.0.0
 - **Source:** {{来源 Prompt 概述}}
-- **version:** 1.0.0
 ```
 
 ---

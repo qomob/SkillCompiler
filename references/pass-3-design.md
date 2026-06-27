@@ -190,6 +190,54 @@ skill-name/
 
 ---
 
+## Step 3.9 — Self-Test Cases 派生
+
+**Pass 3 收尾必做。** 从 Pass 1 的 boundary 和 Pass 2 的 capability_graph 派生静态自测用例，供 Pass 6 Layer B/C 消费。
+
+**这是 IR 作为 test oracle 的关键步骤——不派生用例，Pass 6 就无 oracle 可用。**
+
+### 派生规则
+
+| 用例集 | 来源 | 说明 |
+|--------|------|------|
+| `positive` | `pass_1.boundary.in_scope` × `pass_2.capability_graph.primary` | 应触发 skill 的用户输入（组合场景 × 主能力） |
+| `negative` | `pass_1.boundary.out_of_scope` | 不应触发的用户输入（显式排除项） |
+| `near_miss` | `pass_2.capability_graph.secondary` − `pass_2.capability_graph.primary` | 语义近邻、容易误触发但不在主职责内的输入 |
+
+### 派生要求
+
+1. **positive 至少 3 条** — 覆盖主能力的典型用户表述
+2. **negative 至少 1 条** — 来自 boundary.out_of_scope（若为空，标注 `inferred: "无显式排除项"`）
+3. **near_miss 至少 0 条** — 若 secondary 为空则空数组（无近邻误触发风险）
+4. **用用户视角表述** — 写用户会怎么问，不写内部能力名（如"帮我审一下这段 Python 代码"而非"调用 code-reviewer skill"）
+
+### 示例
+
+```json
+{
+  "self_test_cases": {
+    "positive": [
+      "审查这段 Python 代码的安全问题",
+      "检查这个函数有没有 bug",
+      "帮我 review 一下这个 PR"
+    ],
+    "negative": [
+      "帮我写一段 Python 代码",
+      "翻译这段技术文档"
+    ],
+    "near_miss": [
+      "审查这段 JavaScript 代码"
+    ]
+  }
+}
+```
+
+### 派生完成后
+
+`self_test_cases` 写入 IR 的 `pass_3_design.self_test_cases`。Pass 6 Layer B/C 直接读取此字段，无需重新生成用例。
+
+---
+
 ## Output Schema
 
 ```json
@@ -197,6 +245,11 @@ skill-name/
   "architecture_type": "single-prompt | workflow | multi-agent",
   "workflow_pattern": "pattern name | null",
   "single_skill_pattern": "tool-wrapper | generator | reviewer | inversion | pipeline",
+  "self_test_cases": {
+    "positive": ["应触发的用户输入"],
+    "negative": ["不应触发的用户输入"],
+    "near_miss": ["易误触发的近邻输入"]
+  },
   "module_decomposition": {
     "core_prompt": "SKILL.md 核心职责描述",
     "workflows": ["workflow 文件列表"],
@@ -223,9 +276,32 @@ skill-name/
 }
 ```
 
+## IR 合并
+
+Pass 3 完成后，将 pass_1_analyze、pass_2_extract、pass_3_design 三个字段合并为完整 Skill IR。合并后必须通过 schema 校验才能进入 Pass 4。
+
 ## Decision Gate
 
 | 条件 | 动作 |
 |------|------|
-| architecture_type 确定 + folder_structure 非空 | → Pass 4 |
+| architecture_type 确定 + folder_structure 非空 + IR 通过 schema 校验 | → Pass 4 |
+| IR 校验失败（字段缺失/类型错误） | 修复 IR 缺失字段后重新校验 |
 | 无法确定 architecture_type | 向用户澄清使用场景 |
+
+### IR 校验
+
+📍 IR schema 定义见 [schemas/ir-schema.json](../schemas/ir-schema.json)
+
+Pass 3→4 门控时，对合并后的 IR 执行以下校验：
+
+| # | 校验项 | FAIL 处理 |
+|---|--------|----------|
+| 1 | `meta`、`pass_1_analyze`、`pass_2_extract`、`pass_3_design` 四个顶层字段齐全 | 补齐缺失 Pass 的 IR |
+| 2 | `pass_2_extract.capability_graph.primary` 非空（≥1 个） | 回退 Pass 2 补充能力图谱 |
+| 3 | `pass_3_design.architecture_type` 为 single-prompt / workflow / multi-agent 之一 | 回退 Pass 3 确定架构类型 |
+| 4 | `pass_3_design.single_skill_pattern` 已选择 | 回退 Pass 3 选择 single-skill pattern |
+| 5 | `pass_3_design.folder_structure` 非空 | 回退 Pass 3 规划目录结构 |
+| 6 | `pass_3_design.self_test_cases.positive` ≥ 3 条 | 回退 Pass 3 Step 3.9 补充 positive 用例 |
+| 7 | `pass_3_design.self_test_cases.negative` ≥ 1 条（或标注 inferred） | 回退 Pass 3 Step 3.9 补充 negative 用例 |
+
+全部 PASS → 进入 Pass 4。
