@@ -8,28 +8,87 @@
 
 1. **IR 驱动** — 所有文件内容来自 Pass 1-3 的 IR，不凭空创造
 2. **三层加载** — L1 frontmatter / L2 SKILL.md 路由 / L3 references 懒加载
-3. **frontmatter 卫生** — 只含 `name` + `description`，无构建元数据
-4. **无占位符** — 不留 TODO/TBD/placeholder
-5. **文件最小化** — 只生成 IR 要求的文件，不多创建
+3. **平台感知渲染** — frontmatter、description、文件结构按 `target_platform` 对应的 profile 规范渲染
+4. **frontmatter 卫生** — 只含目标平台要求的字段（generic/trae 仅 name + description）
+5. **无占位符** — 不留 TODO/TBD/placeholder
+6. **文件最小化** — 只生成 IR 要求的文件，不多创建
 
 ---
 
 ## Step 4.1 — SKILL.md 生成
 
-### Frontmatter
+### Step 4.0 — 加载目标平台 Profile
+
+读取 `meta.target_platform` 并加载对应 profile：
+
+| target_platform | Profile 文件 |
+|----------------|-------------|
+| `trae`         | 📍 [profiles/trae.md](../profiles/trae.md) |
+| `claude`       | 📍 [profiles/claude.md](../profiles/claude.md) |
+| `generic`      | 📍 [profiles/generic.md](../profiles/generic.md) |
+
+后续渲染步骤全部参考 profile 中定义的约束（description 格式、触发词策略、文件结构支持列表）。
+
+### Frontmatter — 按平台渲染
+
+#### TRAE 平台
 
 ```yaml
 ---
 name: {kebab-case-name}
-description: "Use when {触发场景}. Triggers on: {3+ 触发词}. {核心功能一句话}"
+description: "Use when {触发场景}. Triggers on: {触发词1}, {触发词2}, {触发词3}. {核心功能一句话}"
+---
+```
+
+**约束：**
+- description 必须为**严格单行 YAML 字符串**，不支持多行 block scalar
+- ≤ 500 字符
+- 触发词用「逗号 + 空格」分隔
+- 不包含 `version` 等额外 frontmatter 字段
+
+#### Claude 平台
+
+```yaml
+---
+name: {kebab-case-name}
+description: >
+  Use when {触发场景}.
+
+  Triggers on:
+  - {触发词1}
+  - {触发词2}
+  - {触发词3}
+
+  {核心功能一句话描述}
 version: 1.0.0
 ---
 ```
 
-**description 规则：**
+**约束：**
+- description 支持多行 block scalar（`>` 或 `|`）
+- ≤ 500 字符
+- 触发词支持列表格式（每行一个）
+- 可包含 `version` 等额外字段
+
+#### Generic 平台（默认）
+
+```yaml
+---
+name: {kebab-case-name}
+description: "Use when {触发场景}. Triggers on: {触发词1}, {触发词2}, {触发词3}. {核心功能一句话}"
+---
+```
+
+**约束：**
+- description 严格单行（兼容所有 YAML 解析器）
+- ≤ 300 字符（最严格限制）
+- frontmatter 只保留 name + description
+
+---
+
+**description 通用规则（所有平台）：**
 - 以 "Use when" / "Use for" 开头
 - 包含 3+ 用户可能输入的触发词
-- 30-500 字符
 - 聚焦用户意图，不描述内部机制
 
 ### Body 结构
@@ -62,6 +121,21 @@ version: 1.0.0
 - **< 150 行：** 理想
 - **150-300 行：** 可接受
 - **> 300 行：** 必须拆分（AP-02 Prompt Black Hole）
+
+### 平台感知的文件结构约束
+
+生成 `references/` 和可能的工作流/agent 目录时，参考目标平台的 profile：
+
+| 目录 | generic | trae | claude |
+|------|---------|------|--------|
+| `references/` | ✅ | ✅ | ✅ |
+| `templates/` | ✅ | ✅ (放 references/ 更安全) | ✅ |
+| `workflows/` | ❌ | ❌ | ✅ |
+| `agents/` | ❌ | ❌ | ✅ |
+| `rubrics/` | ❌ | 放 references/ 内 | ✅ |
+| `checklists/` | ❌ | 放 references/ 内 | ✅ |
+
+**规则：** 不生成目标平台不支持的目录。必须生成的 reference 文件全部放在 `references/` 或模板所在平台允许的位置。
 
 ---
 
@@ -242,11 +316,13 @@ version: 1.0.0
 
 | # | 检查项 | FAIL 处理 |
 |---|--------|----------|
-| 1 | frontmatter 只有 name + description + version | 移除多余字段 |
+| 1 | frontmatter 符合目标平台 profile 规范 | 按 profile 重写 |
 | 2 | description 触发导向（Use when + 3+ 触发词） | 重写 description |
 | 3 | SKILL.md < 300 行 | 拆分到 references |
 | 4 | 所有 📍 标记的文件存在 | 创建缺失文件 |
 | 5 | 无 TODO/TBD/placeholder（gotchas.md 骨架除外） | 填充或移除 |
 | 6 | 每个文件被至少一个其他文件引用 | 移除孤立文件或添加引用 |
+| 7 | 未生成目标平台不支持的目录 | 移入 references/ |
+| 8 | 已设置 `meta.platform_profile_applied = true` | 设置标记 |
 
 任一 FAIL → 修复后重新检查，全部 PASS → 进入 Pass 5/6。

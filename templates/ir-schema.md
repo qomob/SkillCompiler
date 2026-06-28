@@ -9,9 +9,17 @@
 ```json
 {
   "meta": {
-    "compiler_version": "1.0.0",
+    "compiler_version": "1.2.0",
     "source_prompt_hash": "string",
-    "created_at": "ISO8601"
+    "created_at": "ISO8601",
+    "target_platform": "trae | claude | generic",
+    "compilation_mode": "quick | full | audit",
+    "token_budget": {
+      "total_budget": 0,
+      "mode_change_at_pct": 80,
+      "current_estimate": 0
+    },
+    "platform_profile_applied": false
   },
 
   "pass_1_analyze": {
@@ -112,6 +120,11 @@
     "architecture_type": "single-prompt | workflow | multi-agent",
     "workflow_pattern": "string | null",
     "single_skill_pattern": "tool-wrapper | generator | reviewer | inversion | pipeline",
+    "self_test_cases": {
+      "positive": ["string"],
+      "negative": ["string"],
+      "near_miss": ["string"]
+    },
     "module_decomposition": {
       "core_prompt": "string",
       "workflows": ["string"],
@@ -157,12 +170,13 @@
 ## IR 流转
 
 ```
+Pass 0 → 写入 meta.target_platform + meta.compilation_mode + meta.token_budget
 Pass 1 → 写入 pass_1_analyze
 Pass 2 → 读取 pass_1_analyze，写入 pass_2_extract
 Pass 3 → 读取 pass_1 + pass_2，写入 pass_3_design
-Pass 4 → 读取全部 IR，生成文件
+Pass 4 → 读取全部 IR + 对应平台 profile → 生成文件，设置 meta.platform_profile_applied
 Pass 5 → 读取生成结果，更新 IR（优化变更）
-Pass 6 → 读取生成结果 + IR，输出 review
+Pass 6 → 读取生成结果 + IR，输出 review（含 Layer D 平台合规）
 ```
 
 **IR 是唯一数据源。** 所有 Pass 通过 IR 通信，不直接传递未结构化文本。

@@ -68,6 +68,22 @@ README 声称"Skill Compiler 自身的 SKILL.md 经过了自己的 Pass 6 审查
 | 新增机制 | ① IR 新增 `self_test_cases`（Pass 3 从 boundary+capability_graph 派生）<br>② Pass 6 新增 Layer B（B1-B8 IR 契约验证）<br>③ Pass 6 新增 Layer C（C1-C3 静态触发评测）<br>④ 综合评分公式 `skill_quality_score = structural×0.3 + ir_consistency×0.4 + trigger_precision×0.3`<br>⑤ trace schema 新增 evaluation 块 |
 | Pass 6 Verdict | 待重跑（本次变更后需重新执行自编译验证） |
 
+### 2026-06-28 平台适配与成本控制（v1.2.0）
+
+| 项 | 值 |
+|----|-----|
+| 审查触发 | SkillForge Audit-Only 模式审计结果：平台适配性评分 30/100，Token 成本控制评分 25/100 |
+| 架构级盲区 | ① "生成的 skill 在哪些平台能跑"——零平台感知，单平台假设<br>② "编译一次要花多少钱"——无预算、无模式分流、无成本指标 |
+| 变更类型 | 平台适配层 + 编译成本控制，架构级补全 |
+| 新增目录 | `profiles/`（trae.md / claude.md / generic.md） |
+| 新增 IR 字段 | `meta.target_platform` / `meta.compilation_mode` / `meta.token_budget` / `meta.platform_profile_applied` |
+| 新增 Pass 6 Layer D | D1-D8 共 8 项平台合规检查，以 platform profile 为 oracle |
+| 新增编译模式 | `quick`（~3 次调用）/ `full`（~6 次调用）/ `audit`（~2 次调用）|
+| 新增 Pass 5 检查项 | O9 编译过程去重 / O10 IR 瘦身 |
+| 评分公式调整 | structural×0.2 + ir_consistency×0.3 + trigger_precision×0.25 + platform_compliance×0.25 |
+| 修改文件 | SKILL.md, README.md, schemas/ir-schema.json, schemas/trace-schema.json, templates/ir-schema.md, references/pass-4-generate.md, references/pass-5-optimize.md, references/pass-6-validate.md |
+| Pass 6 Verdict | 待重跑（本次变更后需重新执行自编译验证） |
+
 ### 2026-06-27 评估闭环验证 + Issue 修复
 
 | 项 | 值 |

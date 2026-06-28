@@ -7,7 +7,7 @@
 把任意 Prompt 编译成可复用、可维护、可持续演化的 AI Skill
 
 [![Author](https://img.shields.io/badge/Author-qomob.ai-blue)](https://qomob.ai)
-[![Version](https://img.shields.io/badge/Version-v1.1.0-green.svg)](https://github.com/qomob/SkillCompiler)
+[![Version](https://img.shields.io/badge/Version-v1.2.0-green.svg)](https://github.com/qomob/SkillCompiler)
 [![Language](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-red.svg)](https://github.com/qomob/SkillCompiler)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Built with](https://img.shields.io/badge/Built_with-SkillForge-violet.svg)](https://github.com/qomob/skillforge)
@@ -43,6 +43,10 @@ Source Prompt
   - **Layer A 结构完整性** — 五角色架构审查（Skill Architect / Knowledge Engineer / Workflow Designer / Prompt Engineer / Software Architect）
   - **Layer B IR 一致性** — IR 作为 test oracle，逐字段验证生成文件是否忠实于 IR 契约（B1-B8 共 8 项）
   - **Layer C 触发质量** — Pass 3 从 boundary + capability_graph 派生 self_test_cases，静态匹配 description 计算触发精度，零运行时依赖
+- **编译模式选择（v1.2 新增）** — `quick` / `full` / `audit` 三种模式，在不同 token 成本与编译质量间做权衡
+- **平台适配（v1.2 新增）** — 支持 TRAE / Claude / Generic 三类宿主平台，自动按平台规范渲染 frontmatter 与文件结构
+- **Token 预算控制（v1.2 新增）** — 设定编译预算上限，超限时自动降级模式
+- **四层评估闭环（v1.2 新增）** — Pass 6 新增 **Layer D 平台合规**检查，验证生成文件是否符合目标平台 profile 约束
 - **三层渐进加载** — 生成的 Skill 遵循 L1 触发 / L2 路由 / L3 懒加载分层
 - **自编译验证** — Skill Compiler 用自己的 Pass 6 评估了自己，首轮 85.5 分检出 5 个 issue，修复后 100 分通过。审查记录见 [docs/self-compilation-audit.md](docs/self-compilation-audit.md)
 
@@ -52,13 +56,13 @@ Source Prompt
 
 | Pass | 执行 | 职责 |
 |------|------|------|
-| **0 Triage** | ✅ 总是 | 判断输入是否值得编译为 Skill |
+| **0 Triage** | ✅ 总是 | 判断输入是否值得编译为 Skill + 选择目标平台 + 选择编译模式 + 设定 Token 预算 |
 | **1 Analyze** | ✅ 总是 | 理解 Prompt：目标 / 输入输出 / 边界 / 假设 |
 | **2 Extract** | ✅ 总是 | 能力图谱 + 知识清单 + 角色矩阵 |
 | **3 Design** | ✅ 总是 | 架构类型 + 模块拆分 + Workflow + 目录结构 + 自测用例派生 |
-| **4 Generate** | ✅ 总是 | 基于 IR 生成完整 Skill 文件包 |
-| **5 Optimize** | ⚠️ 条件 | Prompt > 500字 / 重复 / multi-agent 时执行 |
-| **6 Validate** | ✅ 总是 | 三层评估：结构完整性（A）+ IR 一致性（B）+ 触发质量（C） |
+| **4 Generate** | ✅ 总是 | 基于 IR + 目标平台 profile 生成符合平台规范的完整 Skill 文件包 |
+| **5 Optimize** | ⚠️ 条件 | Prompt > 500字 / 重复 / multi-agent 时执行；含 O9 编译去重 + O10 IR 瘦身（v1.2） |
+| **6 Validate** | ✅ 总是 | 四层评估：结构完整性（A）+ IR 一致性（B）+ 触发质量（C）+ 平台合规（D） |
 | Plugin Discovery | ❌ 条件 | 涉及外部能力（搜索/GitHub/DB/MCP）时执行 |
 | Example Generation | ❌ 条件 | 涉及复杂流程/规则/评分体系时执行 |
 
@@ -70,13 +74,17 @@ Source Prompt
 skill-compiler/
 ├── SKILL.md                        # 入口 + 路由 manifest（< 150 行）
 ├── README.md                       # 本文件
+├── profiles/                       # 目标平台规范（v1.2 新增）
+│   ├── trae.md                     #   TRAE IDE Skill 规范
+│   ├── claude.md                   #   Claude.ai / Claude Code 规范
+│   └── generic.md                  #   默认通用规范
 ├── references/
 │   ├── pass-1-analyze.md           # Pass 1: 理解 Prompt
 │   ├── pass-2-extract.md           # Pass 2: 能力/知识/角色抽取
 │   ├── pass-3-design.md            # Pass 3: 架构设计 + 自测用例派生
 │   ├── pass-4-generate.md          # Pass 4: 生成文件包
-│   ├── pass-5-optimize.md          # Pass 5: 条件优化
-│   ├── pass-6-validate.md          # Pass 6: 三层评估（A 结构 / B IR 一致性 / C 触发质量）
+│   ├── pass-5-optimize.md          # Pass 5: 条件优化 + O9/O10（v1.2）
+│   ├── pass-6-validate.md          # Pass 6: 四层评估（A 结构 / B IR 一致性 / C 触发质量 / D 平台合规）
 │   ├── anti-patterns.md            # 反模式定义（AP-02/04/06/07/12）
 │   ├── plugin-discovery.md         # 条件 Pass: 插件识别
 │   └── example-generation.md       # 条件 Pass: 示例生成
@@ -87,8 +95,8 @@ skill-compiler/
 │   ├── example-compilation.md      # 完整编译示例（Python 代码审查）
 │   └── example-workflow-compilation.md  # Workflow 类型编译示例
 ├── schemas/
-│   ├── ir-schema.json              # Skill IR JSON Schema（含 self_test_cases）
-│   └── trace-schema.json           # 执行 trace 契约（含 evaluation 块）
+│   ├── ir-schema.json              # Skill IR JSON Schema（含 target_platform / compilation_mode）
+│   └── trace-schema.json           # 执行 trace 契约（含 cost_summary + Layer D）
 └── docs/
     └── self-compilation-audit.md   # 自编译审计记录
 ```
@@ -99,19 +107,20 @@ skill-compiler/
 
 给 Skill Compiler 一个 Prompt，它会：
 
-1. **Pass 0** — 判断是否值得编译（一次性问答会直接拒绝）
+1. **Pass 0** — 判断是否值得编译 + 选择目标平台 + 选择编译模式 + 设定 Token 预算
 2. **Pass 1-3** — 分析 → 抽取 → 设计，产出 Skill IR（含自测用例）
-3. **Pass 4** — 基于 IR 生成完整文件包
-4. **Pass 5** — 条件触发优化
-5. **Pass 6** — 三层评估（A 结构 / B IR 一致性 / C 触发质量），输出评分 + GO/NO-GO
-6. 输出 **Compilation Report** + 完整 Skill 包
+3. **Pass 4** — 基于 IR + 目标平台 profile 生成平台适配的文件包
+4. **Pass 5** — 条件触发优化（含 O9 编译去重 + O10 IR 瘦身）
+5. **Pass 6** — 四层评估（A 结构 / B IR 一致性 / C 触发质量 / D 平台合规），输出评分 + GO/NO-GO
+6. 输出 **Compilation Report** + 完整 Skill 包（含 Cost Summary）
 
-### Pass 6 评分公式
+### Pass 6 评分公式（v1.2）
 
 ```
-skill_quality_score = structural_pass_rate × 0.3
-                    + ir_consistency_rate  × 0.4    ← 权重最高，IR 契约验证
-                    + trigger_precision    × 0.3
+skill_quality_score = structural_pass_rate     × 0.2    (Layer A)
+                    + ir_consistency_rate      × 0.3    (Layer B)
+                    + trigger_precision        × 0.25   (Layer C)
+                    + platform_compliance_rate × 0.25   (Layer D)
 ```
 
 | 分数 | Verdict |
@@ -168,6 +177,23 @@ Skill Compiler 由 [SkillForge](https://github.com/qomob/skillforge) Full 模式
 ---
 
 ## Changelog
+
+### v1.2.0 — 平台适配与成本控制
+
+**核心变更：** 引入目标平台适配层和编译成本控制，解决了"编译出的 skill 在哪些平台能跑"和"编译一次要花多少钱"两个架构级盲区。
+
+| 变更 | 说明 |
+|------|------|
+| **平台适配层** | 新增 `profiles/` 目录（trae/claude/generic），Pass 0 选择平台，Pass 4 按 profile 渲染 frontmatter 与文件结构，Pass 6 Layer D 反向验证 |
+| **编译模式** | 新增 `quick` / `full` / `audit` 三种模式，不同 token 开销与质量等级。默认 full |
+| **Token 预算** | IR meta 新增 `token_budget` 字段，超预算时自动降级模式 |
+| **Pass 6 Layer D** | 新增平台合规检查（D1-D8），验证 frontmatter 格式、description 规范、目录白名单等 |
+| **评分公式调整** | 四层评估：structural×0.2 + ir_consistency×0.3 + trigger_precision×0.25 + platform_compliance×0.25 |
+| **Pass 5 O9/O10** | 新增编译过程去重（O9）和 IR 瘦身（O10），降低编译环节的 token 消耗 |
+| **Trace 补充** | trace-schema.json 新增 `compilation_config` 和 `cost_summary` 字段 |
+| **Profile 自定义** | 高级用户可参考 profiles/ 格式编写自定义平台 profile |
+
+**核心洞察：** Skill 编译器的输出应该是对目标平台"开箱即用"的，而不是需要用户手动适配。平台 profile 作为 oracle，从生成到验证形成闭环。
 
 ### v1.1.0 — 评估闭环补全
 

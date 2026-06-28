@@ -10,13 +10,14 @@
 
 Pass 1-3 产出的 Skill IR 已经包含评估所需的全部信号：边界、能力、标准、失败用例。Pass 6 的职责是回头拿 IR 验证 Pass 4 生成的文件——这是编译器的语义闭环，和编译器做类型检查同理。
 
-三层评估全部静态，零运行时依赖：
+四层评估全部静态，零运行时依赖：
 
 | Layer | 检查对象 | Oracle | 产出 |
 |-------|---------|--------|------|
 | **A 结构完整性** | 文件结构、模块边界 | 五角色审查清单 | issues 列表 |
 | **B IR 一致性** | 生成文件 vs IR 契约 | Skill IR（Pass 1-3） | 契约违反项 |
 | **C 触发质量** | description 触发准确性 | `self_test_cases`（Pass 3 派生） | 触发精度分数 |
+| **D 平台合规** | 生成文件 vs 平台 profile | `profiles/{platform}.md` | 合规违反项 |
 
 ---
 
@@ -131,15 +132,49 @@ trigger_precision = matched_positive / (matched_positive + matched_negative + 0.
 
 ---
 
+## Layer D — 平台合规（Profile 验证）
+
+**问题：** 生成的 Skill 符合 IR 规范，但在目标平台上可能无法正常运行。比如 TRAE 平台不支持多行 description、agents/ 目录等。
+
+**方法：** 读取 `meta.target_platform` 并加载对应平台 profile，逐项验证生成文件是否满足 profile 约束。profile 作为 oracle。
+
+### D 组检查项
+
+| # | 检查项 | 方法 | PASS 标准 | 严重度 |
+|---|--------|------|-----------|--------|
+| D1 | frontmatter 字段合规 | 比对 profile.frontmatter 允许字段 | 生成文件的 frontmatter 字段是 profile 允许的超集 | 🔴 Critical |
+| D2 | description 格式合规 | 检查 description 是否为 profile 要求的格式（单行/多行） | 格式匹配 profile 约束 | 🔴 Critical |
+| D3 | description 长度合规 | 检查 description 字符数 | ≤ profile 规定的上限 | 🟠 High |
+| D4 | 触发词格式合规 | 检查触发词格式是否遵循 profile 规范 | 格式匹配（逗号分隔 / 列表格式） | 🟠 High |
+| D5 | 目录合规 | 检查所有生成的目录是否在 profile 白名单中 | 无不在白名单的目录 | 🟠 High |
+| D6 | platform_profile_applied 标记 | 检查 IR 中此标记 | `meta.platform_profile_applied === true` | 🟡 Medium |
+| D7 | agents/ 目录约束（TRAE） | 若 target=trae，检查是否误生成了 agents/ | 无 agents/ 目录 | 🟠 High |
+| D8 | 额外字段约束 | 检查 frontmatter 是否包含 profile 不允许的额外字段 | 无 profile 不允许的字段 | 🟡 Medium |
+
+### D 组执行规则
+
+1. **无 profile 时跳过** — 若 `meta.target_platform` 对应的 profile 文件不存在，跳过此层并标注 warning
+2. **默认值回退** — 若 profile 中某字段未定义，回退到 `generic` profile 的对应值
+3. **Critical 优先** — D1/D2 失败直接标记为 Critical，必须修复
+
+### 平台合规率计算
+
+```
+platform_compliance_rate = D 组通过项数 / D 组总检查项数
+```
+
+---
+
 ## 综合评分
 
 ### 评分公式
 
 ```
 skill_quality_score =
-    structural_pass_rate    × 0.3    (Layer A)
-  + ir_consistency_rate     × 0.4    (Layer B — 权重最高，契约验证)
-  + trigger_precision       × 0.3    (Layer C)
+    structural_pass_rate       × 0.2    (Layer A)
+  + ir_consistency_rate        × 0.3    (Layer B — 权重最高，契约验证)
+  + trigger_precision          × 0.25   (Layer C)
+  + platform_compliance_rate   × 0.25   (Layer D)
 ```
 
 - `structural_pass_rate` = Layer A 通过项数 / 总项数
@@ -179,13 +214,17 @@ skill_quality_score =
 
 读取 `self_test_cases`，对 description 做静态匹配，计算 trigger_precision。
 
-### Step 6.4 — 去重合并
+### Step 6.4 — Layer D 平台合规
 
-三层可能发现相同问题（如 Layer A Role 4 和 Layer C C1 都发现触发词不足）。合并为单条 issue，标注发现层。
+读取 `meta.target_platform`，加载对应平台 profile，逐项检查 D1-D8。
 
-### Step 6.5 — 计算综合评分
+### Step 6.5 — 去重合并
 
-按公式计算 `skill_quality_score`，结合 Critical issue 数判定 verdict。
+四层可能发现相同问题（如 Layer A Role 4 和 Layer C C1 都发现触发词不足）。合并为单条 issue，标注发现层。
+
+### Step 6.6 — 计算综合评分
+
+按含 Layer D 的公式计算 `skill_quality_score`，结合 Critical issue 数判定 verdict。
 
 ---
 
@@ -248,11 +287,31 @@ skill_quality_score =
       }
     ]
   },
+  "layer_d_platform_compliance": {
+    "issues": [
+      {
+        "id": "D-ISS-001",
+        "check": "D1 | D2 | ... | D8",
+        "severity": "critical | high | medium | low",
+        "title": "问题标题",
+        "detail": "具体描述",
+        "fix": "修复方案"
+      }
+    ],
+    "pass_rate": 0.875,
+    "platform": "trae"
+  },
+  "cost_summary": {
+    "total_tokens": 12500,
+    "total_passes_executed": 5,
+    "total_passes_skipped": 2,
+    "budget_consumption_pct": 62.5
+  },
   "skill_quality_score": 81,
   "issues": [
     {
       "id": "ISS-001",
-      "layer": "A | B | C",
+      "layer": "A | B | C | D",
       "severity": "critical | high | medium | low",
       "title": "问题标题",
       "detail": "具体描述",

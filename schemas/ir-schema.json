@@ -7,11 +7,45 @@
   "properties": {
     "meta": {
       "type": "object",
-      "required": ["compiler_version", "source_prompt_hash", "created_at"],
+      "required": ["compiler_version", "source_prompt_hash", "created_at", "target_platform", "compilation_mode"],
       "properties": {
         "compiler_version": { "type": "string" },
         "source_prompt_hash": { "type": "string" },
-        "created_at": { "type": "string", "format": "date-time" }
+        "created_at": { "type": "string", "format": "date-time" },
+        "target_platform": {
+          "type": "string",
+          "enum": ["trae", "claude", "generic"],
+          "description": "目标宿主平台。Pass 0 确定后写入，Pass 4 按 profile 渲染输出。"
+        },
+        "compilation_mode": {
+          "type": "string",
+          "enum": ["quick", "full", "audit"],
+          "description": "编译模式。quick 跳过非关键 Pass，full 完整编译，audit 只评估已有 skill。"
+        },
+        "token_budget": {
+          "type": "object",
+          "description": "Token 预算控制。Pass 0 设定总预算上限，超限时降级模式。",
+          "properties": {
+            "total_budget": {
+              "type": "number",
+              "description": "编译过程总 token 预算上限。0 表示无限制。"
+            },
+            "mode_change_at_pct": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "当已消耗 token 达到预算的此百分比时，自动降级模式（如 full → quick）。默认 80。"
+            },
+            "current_estimate": {
+              "type": "number",
+              "description": "当前已估算的 token 消耗。每次 Pass 完成后更新。"
+            }
+          }
+        },
+        "platform_profile_applied": {
+          "type": "boolean",
+          "description": "是否已应用目标平台 profile 生成/检查。Pass 4 确认后设为 true。"
+        }
       }
     },
     "pass_1_analyze": {

@@ -81,6 +81,26 @@
 | Skill 涉及外部服务（GitHub/Notion） | → references/plugins.md 记录 |
 | Skill 涉及 MCP 工具 | → references/plugins.md 记录 |
 
+### O9 — 编译过程去重（v1.2 新增）
+
+> 优化的是**编译过程本身**的 token 消耗，而非产物。
+
+| 检查 | 动作 |
+|------|------|
+| 多个 Pass 加载了相同的 reference 文件 | 将公共内容提取为单次加载，Pass 间共享 |
+| 某个 Pass 的 reference 文件 > 2000 tokens 且仅使用其中 < 50% 的内容 | 精简 reference 文件为当前 Pass 需要的部分 |
+| Pass 4 读取的 IR 字段中有 Pass 6 用不到的字段 | 在 Pass 4→6 间传递精简版 IR（仅含必检字段） |
+
+### O10 — IR 瘦身（v1.2 新增）
+
+> IR 是编译器核心数据，但 full compilation 中 IR 会积累大量字段。部分字段仅被单个 Pass 使用一次，不值得保留在完整 IR 中。
+
+| 检查 | 动作 |
+|------|------|
+| IR 中单次使用（仅被一个 Pass 读取）的字段 | 移除出核心 IR，转为该 Pass 本地变量 |
+| `conditional_passes` 中未执行的 block | 从 trace 中移除（仅记录 skip reason），不写入 IR |
+| IR 中的示例/知识内容长度 > 500 tokens 且仅用于 Pass 4 的模板填充 | 压缩为摘要引用（"参见 source prompt 原始内容"）
+
 ---
 
 ## 优化执行规则

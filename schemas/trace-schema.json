@@ -17,6 +17,35 @@
       "type": "string",
       "description": "Hash of the input prompt for deduplication"
     },
+    "compilation_config": {
+      "type": "object",
+      "description": "v1.2: 编译配置快照",
+      "properties": {
+        "target_platform": {
+          "type": "string",
+          "enum": ["trae", "claude", "generic"],
+          "description": "目标平台，由 Pass 0 确定"
+        },
+        "compilation_mode": {
+          "type": "string",
+          "enum": ["quick", "full", "audit"],
+          "description": "本次编译模式"
+        },
+        "token_budget": {
+          "type": "number",
+          "description": "Token 预算上限。0 表示无限制。"
+        },
+        "token_budget_exceeded": {
+          "type": "boolean",
+          "description": "是否因超预算而降级"
+        },
+        "mode_downgraded_to": {
+          "type": "string",
+          "enum": ["quick", "full", "audit", ""],
+          "description": "降级后的模式，如未降级则为空"
+        }
+      }
+    },
     "passes": {
       "type": "array",
       "items": {
@@ -99,7 +128,7 @@
         },
         "evaluation": {
           "type": "object",
-          "description": "Pass 6 三层评估结果（Layer A 结构 / Layer B IR 一致性 / Layer C 触发质量）",
+          "description": "Pass 6 三层评估结果（Layer A 结构 / Layer B IR 一致性 / Layer C 触发质量 / Layer D 平台合规）",
           "properties": {
             "layer_a_structural": {
               "type": "object",
@@ -123,13 +152,37 @@
                 "trigger_precision": { "type": "number", "minimum": 0, "maximum": 1 }
               }
             },
+            "layer_d_platform_compliance": {
+              "type": "object",
+              "description": "v1.2: 平台合规检查",
+              "properties": {
+                "pass_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+                "platform": { "type": "string", "enum": ["trae", "claude", "generic"] },
+                "issues_count": { "type": "number" }
+              }
+            },
             "skill_quality_score": {
               "type": "number",
               "minimum": 0,
               "maximum": 100,
-              "description": "综合评分 = structural×0.3 + ir_consistency×0.4 + trigger_precision×0.3"
+              "description": "综合评分 = structural×0.2 + ir_consistency×0.3 + trigger_precision×0.25 + platform_compliance×0.25"
             }
           }
+        }
+      }
+    },
+    "cost_summary": {
+      "type": "object",
+      "description": "v1.2: 编译成本汇总",
+      "properties": {
+        "total_tokens_in": { "type": "number" },
+        "total_tokens_out": { "type": "number" },
+        "total_tokens": { "type": "number" },
+        "total_passes_executed": { "type": "number" },
+        "total_passes_skipped": { "type": "number" },
+        "skipped_pass_ids": {
+          "type": "array",
+          "items": { "type": "string" }
         }
       }
     },
