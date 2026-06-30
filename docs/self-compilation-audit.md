@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-26
 **Auditor:** SkillForge-assisted review
-**Subject:** Skill Compiler v1.0.0 自编译验证记录
+**Subject:** Skill Compiler v2.0.0 自编译验证记录
 
 ---
 
@@ -92,13 +92,24 @@ README 声称"Skill Compiler 自身的 SKILL.md 经过了自己的 Pass 6 审查
 | 首次评估分数 | skill_quality_score = 85.5，verdict = conditional-pass（1 High + 4 Medium） |
 | 首次评估 Issues | B2 (High): out_of_scope 未落实到 description<br>A-KE-1 (Medium): anti-patterns.md 与 pass-5-optimize.md 重叠<br>B6 (Medium): 同 A-KE-1<br>A-SA-1 (Medium): README 行数声明过时<br>C3 (Medium): "skill builder" 对"从零创建"边界模糊 |
 | 修复动作 | ① description 加 "Not for: ..." 排斥声明 + "existing prompt" 限定<br>② pass-5-optimize.md O4/O5/O6 改为引用 AP 编号<br>③ README 行数改为 "< 150 行" 范围值 |
-| 修复后分数 | skill_quality_score = 100，verdict = pass |
-| 修复后 Issues | 0 |
+| 修复后分数 | skill_quality_score = 100（自评，产出者即验证者，未经独立验证） |
+| 修复后 Issues | 0（自评维度内） |
 | 修改文件 | SKILL.md, references/pass-5-optimize.md, README.md |
+
+---
+
+### 2026-06-30 v2.0.0 生产级修复（SkillForge Audit-Only 审计后）
+
+| 项 | 值 |
+|----|-----|
+| 审查触发 | SkillForge Audit-Only 模式系统性评估（88/100，GO） |
+| 修复项 | ① ir-schema.json 补全 v2.0 字段（evidence/confidence/conflicts）<br>② profiles/generic.md 断裂引用修复<br>③ pass-ingestion.md 补充 Security Boundaries 章节 + SKILL.md Gotcha #11<br>④ 自评声明校准（README/audit/trace-schema）<br>⑤ README 行数声明漂移修复 |
+| 修改文件 | schemas/ir-schema.json, templates/ir-schema.md, profiles/generic.md, references/pass-ingestion.md, SKILL.md, README.md, docs/self-compilation-audit.md, schemas/trace-schema.json |
+| Pass 6 Verdict | 待重跑（本次变更后需重新执行自编译验证） |
 
 ---
 
 ## 待办
 
-- [ ] 建立 CHANGELOG.md 记录版本变更
+- [x] ~~建立 CHANGELOG.md 记录版本变更~~ — 已由 README.md 的 Changelog 章节承担
 - [ ] 后续重大变更时在本文件追加审查记录

@@ -54,7 +54,7 @@
         "properties": {
           "pass_id": {
             "type": "string",
-            "enum": ["triage", "analyze", "extract", "design", "generate", "optimize", "validate", "plugin-discovery", "example-generation"]
+            "enum": ["ingestion", "triage", "analyze", "extract", "design", "generate", "optimize", "validate", "plugin-discovery", "example-generation"]
           },
           "status": {
             "type": "string",
@@ -128,7 +128,7 @@
         },
         "evaluation": {
           "type": "object",
-          "description": "Pass 6 三层评估结果（Layer A 结构 / Layer B IR 一致性 / Layer C 触发质量 / Layer D 平台合规）",
+          "description": "Pass 6 四层评估结果（Layer A 结构 / Layer B IR 一致性 / Layer C 触发质量 / Layer D 平台合规）",
           "properties": {
             "layer_a_structural": {
               "type": "object",

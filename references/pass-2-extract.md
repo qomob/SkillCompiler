@@ -42,7 +42,7 @@ Primary Capability（核心能力，1-3 个）
 
 ## Step 2.2 — Knowledge Inventory 提取
 
-扫描 Prompt，逐句分类：
+扫描内容，逐句分类：
 
 | 知识类型 | 识别信号 | 去向 |
 |---------|---------|------|
@@ -55,11 +55,37 @@ Primary Capability（核心能力，1-3 个）
 | **Processes** | 步骤、流程、phase | Pass 3 Design 处理 |
 | **Experience** | 经验法则、最佳实践、教训 | `references/best-practices.md` |
 
+### 并行提取（v2.0）
+
+当输入来自 Pass I 多源摄取，或内容较长（> 3000 字）时，启用并行提取器代替单线程扫描。五个专项提取器（框架/原则/案例/反例/术语）并行扫描，合并后经三重验证筛入知识库。
+
+📍 并行提取器与三重验证详见 [parallel-extractors.md](parallel-extractors.md)
+
 ### 提取规则
 
 - **去重：** 相同规则出现多次，只保留一次
-- **去噪：** Prompt 中的过渡句、寒暄语不提取
+- **去噪：** 过渡句、寒暄语不提取
 - **标注来源：** 每条知识标注 `[from source prompt]` 或 `[inferred by compiler]`
+
+### 证据分级标注（v2.0）
+
+每条提取的知识**必须携带 `evidence` 字段**，表示其可信度等级：
+
+| 等级 | 含义 | 典型场景 |
+|------|------|---------|
+| `primary` | 原文直引，可溯源 | PDF 文本层、字幕原文、代码注释 |
+| `secondary` | 经过一次模型转述 | OCR 结果、语音转写、视觉理解 |
+| `inferred` | 编译器从上下文推断 | 隐含假设、跨段推理 |
+
+默认值继承自 `pass_ingestion.evidence_grade`（若存在），但可逐条覆盖。
+
+📍 完整证据分级体系与 confidence 字段定义见 [evidence-grading.md](evidence-grading.md)
+
+### 冲突保留（v2.0）
+
+当多条知识描述同一事实但内容矛盾时，**不强行统一，保留所有版本**并记录到 IR 的 `conflicts` 字段。冲突处理策略（unresolved / prefer_higher_evidence / prefer_newer / flag_for_user）见 [evidence-grading.md](evidence-grading.md) 的"冲突保留规则"章节。
+
+**禁止：** 静默丢弃任一版本、强行取平均值、随机选择一方。
 
 ---
 

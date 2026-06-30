@@ -58,4 +58,4 @@ Use when {触发场景}. Triggers on: {触发词1}, {触发词2}, {触发词3}. 
 2. 按平台能力选择性地启用 agents/, workflows/ 目录
 3. 按平台触发机制调整触发词数量与格式
 
-详见 `profiles/README.md` 了解如何编写自定义 profile。
+编写自定义 profile 时，参考 `profiles/trae.md` 和 `profiles/claude.md` 的结构：Frontmatter 规范（字段约束 + description 格式 + 长度上限）+ 加载机制 + 文件结构约束。

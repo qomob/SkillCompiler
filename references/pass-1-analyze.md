@@ -1,6 +1,7 @@
 # Pass 1: Analyze — 理解 Prompt
 
 **加载时机：** 📍 执行到 Pass 1 时加载。
+**输入来源：** 若 Pass I Ingestion 执行过，本 Pass 的输入是其产出的 `structured_content`（标准化文本），需额外关注来源溯源与证据等级。若未执行 Ingestion，输入为用户原始 Prompt。
 
 ---
 
@@ -20,10 +21,12 @@
 
 | 字段 | 如何确定 |
 |------|---------|
-| input | Prompt 接收什么？用户输入？文件？API 响应？ |
+| input | Prompt 接收什么？用户输入？文件？API 响应？结构化内容？ |
 | output | Prompt 产出什么？文本？JSON？文件？结构化报告？ |
 
 如果 Prompt 没有明确说明，从上下文推断并标注为 `inferred`。
+
+**多源输入识别（v2.0）：** 若 Pass I 执行过（IR 含 `pass_ingestion` 字段），`input_spec.type` 设为 `structured_content`，并在 description 中注明原始来源类型（如"来自 PDF 规范文档的结构化内容"）。同时检查 `pass_ingestion.extraction_warnings`，若存在 critical 警告，在 `hidden_assumptions` 中记录"输入内容可能不完整"。
 
 ### Step 1.4 — Capability Hints
 
@@ -82,7 +85,7 @@ Prompt 中隐含但未明说的前提：
     "actual": "真正需要的能力"
   },
   "input_spec": {
-    "type": "string | file | api | mixed",
+    "type": "string | structured_content | file | api | mixed",
     "description": "输入描述",
     "inferred": false
   },
