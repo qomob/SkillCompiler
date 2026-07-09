@@ -71,6 +71,22 @@ Pass 1-3 产出的 Skill IR 已经包含评估所需的全部信号：边界、�
 | 过度设计 | 是否有不必要的抽象 | 🟡 Medium |
 | 文件组织 | 目录结构是否合理 | 🟡 Medium |
 
+### Role 6 — Compaction Resilience（截断韧性，v2.0 新增）
+
+**问题：** Harness 的 compaction 机制会截断 SKILL.md body（只保留前 N 行），导致 routing 信息丢失。
+
+**方法：** 读取 `meta.target_platform` 对应的 `compaction_limit_lines`，模拟截断，检查 routing 完整性。
+
+| 检查项 | 问题信号 | 严重度 |
+|--------|---------|--------|
+| 路由信息前置 | 截断后 routing table（或等效锚点）是否仍完整 | 🔴 Critical |
+| 关键引用可达 | 截断后 "Always Read" 等关键引用声明是否保留 | 🟠 High |
+| 无长依赖链 | 是否存在"需读完整个 body 才能理解"的隐式依赖 | 🟡 Medium |
+
+**PASS 标准：** 截断后 routing 信息完整度 ≥ 80%（按 routing table 可执行行数比例计算）。
+
+**FAIL 处理：** 要求将 routing table 移至 SKILL.md 前 N 行内，或在前 N 行添加显式锚点链接。
+
 ---
 
 ## Layer B — IR 一致性（契约验证）
@@ -94,6 +110,7 @@ Pass 1-3 产出的 Skill IR 已经包含评估所需的全部信号：边界、�
 | B9 | `knowledge_inventory[*].evidence`（v2.0） | evidence 字段完整性 | 所有知识条目都有 evidence 字段（primary/secondary/inferred） | 🟠 High |
 | B10 | `knowledge_inventory[evidence=inferred]`（v2.0） | 推断条目有标注 | evidence=inferred 的条目在生成文件中明确标注为"推断/可能" | 🟡 Medium |
 | B11 | `conflicts`（v2.0） | 冲突未被静默丢弃 | IR 中 conflicts 数组的每个条目在生成文件中都有对应呈现 | 🟠 High |
+| B12 | `conflicts.status`（v2.0） | 冲突健康度 | status=open 占比 < 30%；不存在"连续 3 次编译仍为 open"的冲突 | 🟡 Medium |
 
 ### B 组执行规则
 
@@ -220,6 +237,20 @@ skill_quality_score =
 
 ## 审查流程
 
+### Step 6.0 — Meta-Reflection Pre-Check（v2.1）
+
+在启动四层评估前，用以下 3 个维度做最终的编译自省。Quick 模式跳过此步。
+
+📍 完整框架见 [meta-reflection.md](meta-reflection.md)
+
+| 维度 | 自检问题 |
+|------|---------|
+| D4 证据 | inferred 条目占比是否 > 30%？是否存在"公认事实"其实只是推断的知识？ |
+| D7 目标 | 为了"通过所有 Pass"是否做了不必要的过度设计？最终产出对用户而言真的可用吗？ |
+| D8 不确定性 | skill 中哪些部分是我们猜测的而非确定的？如果只能修正一件事来提高可信度，是什么？ |
+
+**输出：** 自省结果写入 Evaluation Report 的 `meta_reflection_notes` 字段。不阻塞 verdict 判定。
+
 ### Step 6.1 — Layer A 扫描
 
 五角色独立审查，输出 issues 列表。
@@ -345,6 +376,7 @@ skill_quality_score =
     }
   ],
   "verdict": "pass | conditional-pass | fail",
-  "verdict_reason": "判定理由（含分数构成）"
+  "verdict_reason": "判定理由（含分数构成）",
+  "meta_reflection_notes": "v2.1: Step 6.0 元反思自省记录（D4/D7/D8 维度发现）"
 }
 ```

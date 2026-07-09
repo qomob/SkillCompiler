@@ -1,5 +1,32 @@
 # Changelog
 
+## v2.1.0 — Compaction Resilience + Conflict Health + Platform Compaction Awareness (2026-07-08)
+
+**基于对 skill-authoring (Ronifue) 的第一性原理评估与对抗式审查，落地 3 项改进。Pass 6 Layer A 新增 Compaction Resilience 检查；冲突条目增加状态机与健康度检查；平台 Profile 新增 Compaction 行为字段。零架构变更。**
+
+### Added: Compaction Resilience (Pass 6 Layer A)
+- `references/pass-6-validate.md` Layer A 新增 Role 6 — Compaction Resilience。
+- 检查项：路由信息前置（compaction 后 routing table 仍完整）、关键引用可达（Always Read 等声明保留）、无长依赖链。
+- PASS 标准：截断后 routing 信息完整度 ≥ 80%。
+- **动机：** Harness 的 compaction 机制会截断 SKILL.md body，导致 routing 信息丢失。此前无检查项覆盖此场景。
+
+### Added: Conflict Status Machine & Health Check
+- `references/evidence-grading.md` 冲突条目增加字段：`id` / `status`（open → resolved / wontfix / deprecated）/ `resolution` / `resolved_by` / `resolved_at`。
+- 冲突状态机：open → resolved（prefer_higher_evidence / prefer_newer / merged / user_override）/ wontfix / deprecated。
+- Pass 6 Layer B 新增 B12 冲突健康度检查：status=open 占比 < 30%；不存在"连续 3 次编译仍为 open"的冲突。
+- **动机：** 此前冲突只保留不解决，长期积累会变成垃圾场。状态机提供解决路径，健康度检查防止冲突无限堆积。
+
+### Added: Platform Compaction Behavior
+- `profiles/trae.md` / `claude.md` / `generic.md` 新增 Compaction 行为表（strategy / body_limit_lines / preserves / loses）。
+- TRAE: preserve_frontmatter, ~150 行。Claude: summarize, ~100 行。Generic: unknown, ~80 行（最保守）。
+- **动机：** 不同 harness 的 compaction 行为不同，编译器需要知道这些差异才能生成 routing 信息前置的 skill。
+
+### Boundary Compliance
+- 无新 Pass、无新 IR schema 变更（冲突字段是 evidence-grading 的扩展，不是 IR 结构变更）。
+- 改动范围: 1 个 pass-6 文件 + 1 个 evidence-grading 文件 + 3 个 profile 文件 + README.md + CHANGELOG.md。
+
+---
+
 ## v2.0.0 — 多源摄取与诚实边界
 
 **核心变更：** 编译器输入从"纯文本 Prompt"扩展到"任意来源"（PDF/视频/网页/图片/文档），并引入证据分级与诚实边界，解决"多源内容如何编译"和"生成的 skill 不知道自己做不到什么"两个盲区。

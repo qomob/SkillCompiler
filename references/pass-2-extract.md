@@ -129,6 +129,18 @@ Primary Capability（核心能力，1-3 个）
 - 缺少 Router？（多种输入类型需要路由）
 - 缺少 Formatter？（需要统一输出格式）
 
+### Step 2.4 — Meta-Reflection Checkpoint（v2.1）
+
+在进入 Pass 3 之前，用证据维度审视知识提取质量。Quick 模式跳过此步。
+
+📍 完整框架见 [meta-reflection.md](meta-reflection.md)
+
+| 维度 | 自检问题 |
+|------|---------|
+| D4 证据 | 所有知识条目是否都携带 `evidence` 字段？inferred 条目占比是否 > 30%？是否存在"公认事实"其实只是推断的知识？ |
+
+**输出：** 如发现大量 inferred 条目缺少推断依据标注，补充标注后写入 IR。不阻塞 Decision Gate。
+
 ---
 
 ## Output Schema

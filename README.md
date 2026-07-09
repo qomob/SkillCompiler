@@ -120,7 +120,7 @@ code-reviewer/
 | **3 Design** | ✅ 总是 | 架构类型 + 模块拆分（含诚实边界）+ Workflow + 目录结构 + 自测用例 |
 | **4 Generate** | ✅ 总是 | 基于 IR + 目标平台 profile 生成符合平台规范的完整 Skill 文件包 |
 | **5 Optimize** | ⚠️ 条件 | 内容 > 500字 / 重复 / multi-agent 时执行 |
-| **6 Validate** | ✅ 总是 | 四层评估：结构（A）+ IR 一致性（B）+ 触发质量（C，含压力测试）+ 平台合规（D） |
+| **6 Validate** | ✅ 总是 | 四层评估：结构（A，含 Compaction Resilience）+ IR 一致性（B，含冲突健康度）+ 触发质量（C，含压力测试）+ 平台合规（D） |
 | Plugin Discovery | ❌ 条件 | 涉及外部能力（搜索/GitHub/DB/MCP）时执行 |
 | Example Generation | ❌ 条件 | 涉及复杂流程/规则/评分体系时执行 |
 
@@ -144,13 +144,15 @@ skill_quality_score = structural_pass_rate     × 0.2    (Layer A)
 ## 核心能力
 
 - **多源摄取** — PDF/视频/网页/图片/文档自动解析（pdftotext/ffmpeg+whisper/tesseract/WebFetch），标准化为结构化内容 + 来源溯源
-- **证据分级** — 每条知识携带 primary/secondary/inferred 证据等级，冲突信息保留标注而非静默消除
+- **证据分级** — 每条知识携带 primary/secondary/inferred 证据等级，冲突信息保留标注而非静默消除，含冲突状态机与健康度检查
 - **诚实边界** — 生成的 skill 强制声明局限性/失败模式/适用前提
 - **并行提取器** — 五个专项提取器（框架/原则/案例/反例/术语）并行扫描长内容，三重验证筛入知识库
 - **压力测试** — 构造边界交叉区诱饵输入验证 description 锐利度
-- **平台适配** — 支持 TRAE / Claude / Generic，自动按平台规范渲染 frontmatter 与文件结构
+- **平台适配** — 支持 TRAE / Claude / Generic，自动按平台规范渲染 frontmatter 与文件结构（含 Compaction 行为感知）
+- **压缩截断韧性** — 检查生成的 skill 在 harness compaction 后 routing 信息是否仍完整
 - **Token 预算控制** — 设定预算上限，超限时自动降级模式
 - **三层渐进加载** — 生成的 Skill 遵循 L1 触发 / L2 路由 / L3 懒加载分层
+- **元反思审计** — 编译器在关键决策后执行 8 维度自省（问题定义/假设/推理/证据/替代解释/边界/目标/不确定性），不阻塞流程但写入 trace
 
 ---
 
@@ -178,7 +180,8 @@ skill-compiler/
 │   ├── parallel-extractors.md      #   并行提取器 + 三重验证
 │   ├── anti-patterns.md            #   反模式定义
 │   ├── plugin-discovery.md         #   条件 Pass: 插件识别
-│   └── example-generation.md       #   条件 Pass: 示例生成
+│   ├── example-generation.md       #   条件 Pass: 示例生成
+│   └── meta-reflection.md          #   v2.1: 8维度编译自省框架
 ├── templates/
 │   ├── skill-md-template.md        #   SKILL.md 输出模板
 │   └── ir-schema.md                #   Skill IR 中间表示 schema

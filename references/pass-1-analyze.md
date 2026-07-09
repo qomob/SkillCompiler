@@ -73,6 +73,21 @@ Prompt 中隐含但未明说的前提：
 - 不确定的使用频率（影响 archetype）？
 - 不确定的输出消费者（影响输出格式）？
 
+### Step 1.8 — Meta-Reflection Checkpoint（v2.1）
+
+在进入 Pass 2 之前，用以下 4 个维度二次审视刚才的分析结论。Quick 模式跳过此步。
+
+📍 完整框架见 [meta-reflection.md](meta-reflection.md)
+
+| 维度 | 自检问题 | 触发条件 |
+|------|---------|---------|
+| D1 问题定义 | `prompt_goal.actual` 是否比 `stated` 更深一层？有没有更好的问题表述？ | 总是 |
+| D2 假设 | `hidden_assumptions` 中是否有"假设用户会正确使用"？最脆弱的假设如果错了，哪些结论崩塌？ | hidden_assumptions 非空 |
+| D7 目标 | 是否为了降低 token 消耗而在牺牲 skill 的准确度？最终产出对用户真的可用吗？ | 总是 |
+| D8 不确定性 | `unknowns` 之外是否还有未记录的不确定点？如果只能向用户确认一件事，是什么？ | 总是 |
+
+**输出：** 将自省结果追加到 `unknowns`（如有新发现的不确定点）或写入 trace。不阻塞 Decision Gate。
+
 ---
 
 ## Output Schema

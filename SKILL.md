@@ -26,6 +26,9 @@ version: 2.0.0
 | P2 | 重复内容外置 | 超过一次使用的内容 → `references/` |
 | P3 | Prompt 最小化 | 知识外置，Workflow 独立，配置参数化 |
 | P4 | 不照搬 Prompt | 以 Skill 为中心重新设计，保留"能力"而非"文字" |
+| P5 | 元反思审计 | 在关键决策后自省：问题定义 / 假设 / 推理 / 证据 / 替代解释 / 边界 / 目标 / 不确定性 — 8 维度二次审视 |
+
+📍 [references/meta-reflection.md](references/meta-reflection.md)
 
 ---
 
@@ -63,8 +66,9 @@ Source (Prompt / PDF / Video / URL / Image / Doc)
 | Evidence Grading | 三级证据体系（primary/secondary/inferred）+ 冲突保留 | Pass 2, Pass 6 Layer B |
 | Honest Boundaries | 诚实边界规范（局限性/失败模式/适用前提） | Pass 3, Pass 6 Layer A |
 | Parallel Extractors | 五并行提取器 + 三重验证 | Pass 2（多源/长内容时） |
+| Meta Reflection | 8 维度编译自省框架（问题/假设/推理/证据/替代/边界/目标/不确定性） | Pass 1, Pass 2, Pass 3, Pass 6 Decision Gates |
 
-📍 [references/evidence-grading.md](references/evidence-grading.md) · [references/honest-boundaries.md](references/honest-boundaries.md) · [references/parallel-extractors.md](references/parallel-extractors.md)
+📍 [references/evidence-grading.md](references/evidence-grading.md) · [references/honest-boundaries.md](references/honest-boundaries.md) · [references/parallel-extractors.md](references/parallel-extractors.md) · [references/meta-reflection.md](references/meta-reflection.md)
 
 ---
 
@@ -141,6 +145,7 @@ meta.token_budget          = 用户设定或默认值
 8. **Token 估计门槛：** 每次 Pass 完成后在 IR 中更新 `token_budget.current_estimate`。若 `current_estimate > total_budget × mode_change_at_pct / 100`，自动降级编译模式。
 9. **诚实边界强制（v2.0）** — 生成的 skill 必须包含 honest-boundaries 声明。Pass 3 规划模块，Pass 6 Layer A 验证存在性。
 10. **证据可溯源（v2.0）** — 多源输入时，每条知识携带 evidence 等级。Pass 2 标注，Pass 6 Layer B 验证完整性。冲突不静默丢弃。
+11. **元反思自省（v2.1）** — 关键 Pass（1/2/3/6）Decision Gate 处执行 8 维度自检。Quick 模式跳过。自省结果写入 trace，不阻塞编译流程。📍 [references/meta-reflection.md](references/meta-reflection.md)
 
 ---
 

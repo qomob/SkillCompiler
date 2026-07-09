@@ -280,6 +280,20 @@ skill-name/
 - 关系图帮助用户理解 skill 间的协作方式，而非孤立使用
 - `contradicts` 关系必须指向 `references/conflicts.md` 的具体条目
 
+### Step 3.11 — Meta-Reflection Checkpoint（v2.1）
+
+在设计产出 IR 之前，用以下 3 个维度二次审视设计决策。Quick 模式跳过此步。
+
+📍 完整框架见 [meta-reflection.md](meta-reflection.md)
+
+| 维度 | 自检问题 | 触发条件 |
+|------|---------|---------|
+| D3 推理 | architecture_type 的决策链是否有跳跃？模块拆分标准是否前后一致？ | 总是 |
+| D5 替代解释 | 是否考虑过至少 1 个替代架构并给出诚实的淘汰理由？替代方案的优势是否被如实评估？ | architecture_type 非 single-prompt |
+| D6 边界条件 | out_of_scope 条目是否足够具体？当前设计在输入为空/极长/格式退化时是否仍适用？ | 总是 |
+
+**输出：** 自省结果写入 trace。如果发现设计漏洞，在进入 Pass 4 前修正 IR。
+
 ---
 
 ## Output Schema

@@ -78,26 +78,50 @@ Pass 2 提取时，若两条知识描述同一实体但内容矛盾：
 {
   "conflicts": [
     {
+      "id": "C-001",
       "topic": "API 限流策略",
+      "status": "open",
       "versions": [
-        { "content": "每分钟 100 次", "source": "doc-v1.md", "evidence": "primary" },
-        { "content": "每分钟 1000 次", "source": "doc-v2.md", "evidence": "primary" }
+        { "content": "每分钟 100 次", "source": "doc-v1.md", "evidence": "primary", "confidence": 0.95 },
+        { "content": "每分钟 1000 次", "source": "doc-v2.md", "evidence": "primary", "confidence": 0.95 }
       ],
-      "resolution": "unresolved",
+      "resolution": null,
+      "resolved_by": null,
+      "resolved_at": null,
       "note": "两个版本表述不一致，保留待用户裁决"
     }
   ]
 }
 ```
 
+### 冲突状态机
+
+```
+open ──────────────────────────────► resolved
+  │                                     │
+  ├──► wontfix（不影响核心功能）         ├── resolution: prefer_higher_evidence
+  │                                     ├── resolution: prefer_newer
+  └──► deprecated（源已过期）            ├── resolution: merged
+                                        ├── resolution: user_override
+                                        └── resolved_by: user | compiler | cross_reference
+```
+
+| 状态 | 含义 | 终态？ |
+|------|------|--------|
+| `open` | 新发现冲突，待处理 | 否 |
+| `resolved` | 已裁决，标注了 resolution 和 resolved_by | 是 |
+| `wontfix` | 不影响核心功能，保留但不处理 | 是 |
+| `deprecated` | 冲突源已不再适用 | 是 |
+
 ### 冲突处理策略
 
 | 策略 | 适用场景 |
 |------|---------|
-| `unresolved`（默认） | 证据等级相同（如都是 primary），无法自动裁决 |
 | `prefer_higher_evidence` | 一方 primary 一方 inferred，采用 primary |
 | `prefer_newer` | 来源有时间戳且差异显著，采用较新版本（需标注理由） |
 | `flag_for_user` | 矛盾影响 skill 核心功能，必须用户裁决 |
+| `merged` | 两版本可合并为更完整的表述 |
+| `user_override` | 用户明确选择了某一版本 |
 
 **禁止操作：** 静默丢弃任一版本、强行取平均值、随机选择一方。
 
