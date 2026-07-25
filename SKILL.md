@@ -1,7 +1,7 @@
 ---
 name: skill-compiler
 description: "Use when you need to compile any prompt OR multi-source content (PDF/video/URL/image/doc) into a production-grade, reusable AI Skill. Triggers on: 'prompt to skill', 'compile prompt', '把 prompt 变成 skill', '提示词编译', 'PDF转skill', '视频转skill', '网页转skill', 'skill from prompt', 'skill from document'. Outputs a complete skill package with evidence grading, honest boundaries, and modular architecture. Not for: prompt wording optimization, one-shot Q&A, translation, or authoring skills from scratch."
-version: 2.0.0
+version: 2.2.0
 ---
 
 # Skill Compiler | 白泽

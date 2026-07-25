@@ -1,5 +1,37 @@
 # Changelog
 
+## v2.2.0 — Layer E Token 经济性评估 + 知识分层原则 + 白泽命名 (2026-07-25)
+
+**Pass 6 Validate 从四层评估升级为五层评估（新增 Layer E 产物 token 经济性）；Core Principle P2 从"重复内容外置"升级为"知识按变更频率分层"；Skill 中文名命名为「白泽」。零 IR schema 变更，Layer E 是 Pass 6 内部扩展。**
+
+### Added: Layer E — 产物 Token 经济性评估 (Pass 6 第五层)
+- `references/pass-6-validate.md` 从四层（A 结构 / B IR 一致性 / C 触发质量 / D 平台合规）升级为五层，新增 Layer E — Token Economy。
+- Layer E 评估运行时 context 效率四个维度：路由信息密度、加载策略（按需 vs 全量）、分段粒度、触发精度（避免误加载）。
+- 评分纳入 `skill_quality_score` 权重（structural×0.2 + ir_consistency×0.3 + trigger_precision×0.25 + platform_compliance×0.25 调整为含 token_economy 的五因子公式）。
+- **动机：** 此前只评估生成时质量，不评估运行时 token 开销。宿主平台 compaction 后 context 占用直接影响 skill 可用性，Layer E 让编译出的 skill 在运行时 context 效率可控。
+
+### Changed: Core Principle P2 — 知识按变更频率分层
+- `SKILL.md` Core Principles P2 从"重复内容外置"升级为"知识按变更频率分层"。
+- 区分**稳定层**（原理/规则，低频变更）与**时效层**（数据/案例/价格，高频变更），分离到不同 reference 文件，支持独立 compaction 与增量更新。
+- `references/pass-3-design.md` 设计阶段新增 token 经济性维度考量（决定知识如何切分到 reference）。
+- `references/example-generation.md` 示例生成补充 token 经济性考量。
+- **动机：** 稳定层与时效层混放会导致 compaction 时整体丢失或全量重载。分层后稳定层可常驻，时效层按需加载，降低运行时 token 消耗。
+
+### Added: 中文名「白泽」
+- `SKILL.md` / `README.md` 标题加注中文别名「白泽」并补充命名寓意。
+- 白泽，神话中通晓万物之理的神兽，契合本 Skill 编译万物为 Skill 的能力。
+- 保留英文原名 `skill-compiler` 与 frontmatter `name` 不变。
+
+### Engineering: 工程清理
+- 新增 `.gitignore`（忽略 `.DS_Store` / `*.zip` / IDE / Node 临时文件）。
+- 从仓库移除已入库的 `.DS_Store`（本地文件保留）。
+
+### Boundary Compliance
+- 无新 Pass、无 IR schema 变更（Layer E 是 Pass 6 内部扩展，A/B/C/D 评估逻辑不变）。
+- 改动范围：1 SKILL.md + 3 references（pass-3-design / pass-6-validate / example-generation）+ README.md + .gitignore。
+
+---
+
 ## v2.1.0 — Compaction Resilience + Conflict Health + Platform Compaction Awareness (2026-07-08)
 
 **基于对 skill-authoring (Ronifue) 的第一性原理评估与对抗式审查，落地 3 项改进。Pass 6 Layer A 新增 Compaction Resilience 检查；冲突条目增加状态机与健康度检查；平台 Profile 新增 Compaction 行为字段。零架构变更。**
@@ -21,9 +53,18 @@
 - TRAE: preserve_frontmatter, ~150 行。Claude: summarize, ~100 行。Generic: unknown, ~80 行（最保守）。
 - **动机：** 不同 harness 的 compaction 行为不同，编译器需要知道这些差异才能生成 routing 信息前置的 skill。
 
+### Added: Meta-Reflection Reference（元反思推演框架）
+- 新增 `references/meta-reflection.md` — 8 维度推演自检框架（192 行）。
+- Pass 1/2/3/6 引用元反思检查点，在分析/提取/设计/验证阶段执行推演自检。
+- **动机：** 此前 Pass 间是单向流水线，缺乏跨 Pass 的反思环节。元反思让编译器在关键节点回看假设是否成立、推理是否完整。
+
+### Changed: Evidence Grading L1-L4 对齐
+- `references/evidence-grading.md` 更新 L1-L4 信源分级规则，对齐 OPC（One-Pass Compiler）规范。
+- profiles/ 三平台（claude/generic/trae）同步更新 evidence grading 相关字段。
+
 ### Boundary Compliance
 - 无新 Pass、无新 IR schema 变更（冲突字段是 evidence-grading 的扩展，不是 IR 结构变更）。
-- 改动范围: 1 个 pass-6 文件 + 1 个 evidence-grading 文件 + 3 个 profile 文件 + README.md + CHANGELOG.md。
+- 改动范围: 1 个 pass-6 文件 + 1 个 evidence-grading 文件 + 1 个 meta-reflection 文件 + 3 个 profile 文件 + 3 个 pass 文件（pass-1/2/3）+ README.md + CHANGELOG.md。
 
 ---
 
