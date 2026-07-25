@@ -16,6 +16,8 @@ version: 2.0.0
 
 整个编译过程中持续优化，而非机械转换。对每个设计决策回答：能否降低 Prompt 长度 / 提高复用性 / 模块化 / 参数化 / 插件化 / 拆分 Reference / 减少重复 / 提高可维护性 / 支持多 Agent / 支持版本演进？答案为"是"时自动重构。
 
+**产物 token 经济性（运行时视角）：** 上述优化同时回答一个问题——产物在运行时占用多少 context？知识收拢避免跨文件加载开销；按需加载只占用必要 token；变更频率分层让稳定/时效内容独立演进；后置触发替代前置全选择。Skill 架构本质上是在有限 token 预算内最大化知识密度。每个设计决策都应能回答"这会消耗多少 context 窗口"。
+
 ---
 
 ## Core Principles
@@ -23,7 +25,7 @@ version: 2.0.0
 | # | 原则 | 含义 |
 |---|------|------|
 | P1 | Prompt 不是 Skill | Skill = Role + Workflow + Knowledge + Decision Logic + Checklist + Rubric + Templates + Examples + Config + References + Output Schema |
-| P2 | 重复内容外置 | 超过一次使用的内容 → `references/` |
+| P2 | 知识按变更频率分层 | 重复内容外置 → `references/`；同一变更频率的知识聚合，稳定层（经营框架/公式/定义，低频变更）与时效层（策略/事件/口径，高频变更）分离存储。混存储导致维护成本指数级增长——更新时效内容易误改稳定内容，文件膨胀让维护者无法定位 |
 | P3 | Prompt 最小化 | 知识外置，Workflow 独立，配置参数化 |
 | P4 | 不照搬 Prompt | 以 Skill 为中心重新设计，保留"能力"而非"文字" |
 | P5 | 元反思审计 | 在关键决策后自省：问题定义 / 假设 / 推理 / 证据 / 替代解释 / 边界 / 目标 / 不确定性 — 8 维度二次审视 |
@@ -50,7 +52,7 @@ Source (Prompt / PDF / Video / URL / Image / Doc)
 | **3 Design** | ✅ 总是 | 架构类型 + 模块拆分（含诚实边界）+ Workflow + 目录结构 + 自测用例 + Skill 链接图 | 📍 [references/pass-3-design.md](references/pass-3-design.md) |
 | **4 Generate** | ✅ 总是 | 生成完整 Skill 文件包 | 📍 [references/pass-4-generate.md](references/pass-4-generate.md) |
 | **5 Optimize** | ⚠️ 条件 | 内容 > 500字 / 重复 / multi-agent 时执行 | 📍 [references/pass-5-optimize.md](references/pass-5-optimize.md) |
-| **6 Validate** | ✅ 总是 | 四层评估：结构完整性（A）+ IR 一致性（B）+ 触发质量（C，含压力测试）+ 平台合规（D） | 📍 [references/pass-6-validate.md](references/pass-6-validate.md) |
+| **6 Validate** | ✅ 总是 | 五层评估：结构完整性（A）+ IR 一致性（B）+ 触发质量（C，含压力测试）+ 平台合规（D）+ 产物 token 经济性（E） | 📍 [references/pass-6-validate.md](references/pass-6-validate.md) |
 
 **条件 Pass：**
 
@@ -157,12 +159,13 @@ meta.token_budget          = 用户设定或默认值
 - **Folder Tree** — 生成的目录结构
 - **Passes Executed** — 实际执行的 Pass 列表
 - **Module Dependency Graph** — 核心模块依赖关系
-- **Evaluation Report** — Pass 6 四层评估结果：
+- **Evaluation Report** — Pass 6 五层评估结果：
   - Layer A 结构完整性 pass_rate
   - Layer B IR 一致性 pass_rate（IR 作为 test oracle 验证产出）
   - Layer C 触发质量 trigger_precision（self_test_cases 静态匹配）
   - Layer D 平台合规 pass_rate（按 target platform profile 验证）
-  - 综合评分 `skill_quality_score`（0-100，含 Layer D）
+  - Layer E 产物 token 经济性 pass_rate（路由/加载/分段/触发的运行时 context 效率）
+  - 综合评分 `skill_quality_score`（0-100，含 Layer E）
 - **Cost Summary** — 编译成本汇总：
   - 总 token 消耗（输入 + 输出）
   - 执行的 Pass 列表 / 跳过的 Pass 列表

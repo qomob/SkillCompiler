@@ -1,4 +1,4 @@
-# Pass 6: Validate — 三层评估
+# Pass 6: Validate — 五层评估
 
 **加载时机：** 📍 执行到 Pass 6 时加载。
 
@@ -10,7 +10,7 @@
 
 Pass 1-3 产出的 Skill IR 已经包含评估所需的全部信号：边界、能力、标准、失败用例。Pass 6 的职责是回头拿 IR 验证 Pass 4 生成的文件——这是编译器的语义闭环，和编译器做类型检查同理。
 
-四层评估全部静态，零运行时依赖：
+五层评估全部静态，零运行时依赖：
 
 | Layer | 检查对象 | Oracle | 产出 |
 |-------|---------|--------|------|
@@ -18,6 +18,7 @@ Pass 1-3 产出的 Skill IR 已经包含评估所需的全部信号：边界、�
 | **B IR 一致性** | 生成文件 vs IR 契约 | Skill IR（Pass 1-3） | 契约违反项 |
 | **C 触发质量** | description 触发准确性 | `self_test_cases`（Pass 3 派生） | 触发精度分数 |
 | **D 平台合规** | 生成文件 vs 平台 profile | `profiles/{platform}.md` | 合规违反项 |
+| **E 产物 token 经济性** | 产物的运行时 context 效率 | 架构判据（收拢/按需加载/分层/后置触发） | token 效率分数 |
 
 ---
 
@@ -135,6 +136,7 @@ Pass 1-3 产出的 Skill IR 已经包含评估所需的全部信号：边界、�
 | C2 | negative 排斥 | 对每个 `self_test_cases.negative`，检查 description 是否**不**含匹配词 | 误触发率 = 0% | 🟠 High |
 | C3 | near_miss 边界 | 对每个 `self_test_cases.near_miss`，检查 description 是否有明确排斥声明 | 有排斥声明 或 near_miss 为空 | 🟡 Medium |
 | C4 | 压力测试 / 诱饵题（v2.0） | 构造"看似在 scope 内但实际应拒绝"的诱饵输入，检查 description 是否会被误导触发 | 诱饵题误触发率 = 0% | 🟠 High |
+| C5 | 路由/方法选项歧义（v2.2） | 对 workflow/multi-agent skill，检查 Pass 3 `workflow_steps` 中并列可选路径/方法的关键词重叠度；对重叠对检查是否有消歧规则 | 重叠对均有消歧规则，或无重叠（路径数 < 5 时本项 PASS） | 🟡 Medium |
 
 ### C4 压力测试（诱饵题）说明
 
@@ -200,21 +202,57 @@ platform_compliance_rate = D 组通过项数 / D 组总检查项数
 
 ---
 
+## Layer E — 产物 Token 经济性（运行时 context 效率）
+
+**问题：** 编译产物在结构/契约/触发/平台四层都合格，但运行时可能低效——全量加载本应按需加载的知识、把不同变更频率的知识混存储、用前置全选择代替后置触发。这些不会让 skill"坏掉"，但会让它在有限 context 窗口下知识密度低下，长期维护成本高。
+
+**方法：** 静态分析产物的知识组织方式，对照四条架构判据。零运行时依赖，纯结构推断。
+
+> **第一性原理：** Skill 架构本质上是在有限 token 预算内最大化知识密度。每个设计决策都应能回答"这会消耗多少 context 窗口"。
+
+### E 组检查项
+
+| # | 检查项 | 方法 | PASS 标准 | 严重度 |
+|---|--------|------|-----------|--------|
+| E1 | 知识收拢（非碎片化） | 检查同一实体/主题的连贯上下文是否被打散到多个小文件（单实体跨 > 3 个文件且每个 < 50 行 = 碎片化信号） | 单实体的稳定知识收拢在尽量少的文件中，LLM 能在一个视野内看到连贯上下文 | 🟠 High |
+| E2 | 按需加载（非全量灌入） | 检查 SKILL.md 是否要求启动时加载所有 reference，还是根据问题动态决定 | 有路由层/条件加载逻辑，简单问题只加载必要文件，复杂问题才追加 | 🟠 High |
+| E3 | 变更频率分层 | 若 `knowledge_stratification.applicable=true`（Pass 3 Step 3.4b），检查稳定层与时效层是否物理分离到不同文件 | 稳定知识（框架/公式/定义）与时效知识（策略/事件/口径）不在同一文件；不适用时 PASS | 🟡 Medium |
+| E4 | 后置触发（非前置全选择） | 若 workflow 有 ≥ 5 个并列可选方法/路径，检查是否采用后置触发（`trigger_signal` 标注）而非全量预加载 | 方法文件按信号触发加载，而非启动时全量加载；路径数 < 5 时 PASS | 🟡 Medium |
+| E5 | 分段加载（大文件粒度控制） | 检查主题文件（覆盖多实体）是否声明了分段加载策略，而非全文件加载 | 单次请求只加载目标实体段落，token 控制在数百以内；无大主题文件时 PASS | 🟡 Medium |
+
+### E 组执行规则
+
+1. **按 skill 类型降级** — single-prompt skill 无 workflow/路由层时，E2/E4/E5 标 PASS（不适用）；E1/E3 仍检查知识组织
+2. **证据来自产物结构** — 不跑 LLM，只读文件组织方式推断
+3. **FAIL 给改进建议** — 指出哪个判据未满足及如何重构
+
+### Token 经济性率计算
+
+```
+token_efficiency_rate = E 组通过项数 / E 组适用项数
+```
+
+**适用项数：** 排除"不适用"（PASS by N/A）后的实际检查项数。
+
+---
+
 ## 综合评分
 
 ### 评分公式
 
 ```
 skill_quality_score =
-    structural_pass_rate       × 0.2    (Layer A)
-  + ir_consistency_rate        × 0.3    (Layer B — 权重最高，契约验证)
-  + trigger_precision          × 0.25   (Layer C)
-  + platform_compliance_rate   × 0.25   (Layer D)
+    structural_pass_rate       × 0.15   (Layer A)
+  + ir_consistency_rate        × 0.25   (Layer B — 权重最高，契约验证)
+  + trigger_precision          × 0.20   (Layer C)
+  + platform_compliance_rate   × 0.20   (Layer D)
+  + token_efficiency_rate      × 0.20   (Layer E)
 ```
 
 - `structural_pass_rate` = Layer A 通过项数 / 总项数
 - `ir_consistency_rate` = Layer B 通过项数 / 总项数
 - `trigger_precision` = Layer C 计算值
+- `token_efficiency_rate` = Layer E 通过项数 / 适用项数
 
 ### Verdict 判定
 
@@ -267,13 +305,17 @@ skill_quality_score =
 
 读取 `meta.target_platform`，加载对应平台 profile，逐项检查 D1-D8。
 
+### Step 6.4b — Layer E 产物 token 经济性
+
+静态分析产物的知识组织方式，对照 E1-E5 判据。single-prompt skill 对 E2/E4/E5 标 N/A。
+
 ### Step 6.5 — 去重合并
 
 四层可能发现相同问题（如 Layer A Role 4 和 Layer C C1 都发现触发词不足）。合并为单条 issue，标注发现层。
 
 ### Step 6.6 — 计算综合评分
 
-按含 Layer D 的公式计算 `skill_quality_score`，结合 Critical issue 数判定 verdict。
+按含 Layer E 的公式计算 `skill_quality_score`，结合 Critical issue 数判定 verdict。
 
 ---
 
@@ -349,6 +391,20 @@ skill_quality_score =
     ],
     "pass_rate": 0.875,
     "platform": "trae"
+  },
+  "layer_e_token_economy": {
+    "issues": [
+      {
+        "id": "E-ISS-001",
+        "check": "E1 | E2 | E3 | E4 | E5",
+        "severity": "high | medium",
+        "title": "问题标题",
+        "detail": "具体描述",
+        "fix": "重构方案"
+      }
+    ],
+    "pass_rate": 0.8,
+    "applicable_checks": 4
   },
   "cost_summary": {
     "total_tokens": 12500,
