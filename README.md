@@ -1,8 +1,10 @@
 <div align="center">
 
-# Skill Compiler
+# Skill Compiler | 白泽
 
 **任意来源 → Skill IR → Optimized Skill Package**
+
+> **命名寓意：** 白泽，神话中通晓万物之理的神兽。本 Skill 能将任意来源（PDF/视频/网页/图片/文档）编译为可复用 Skill，如白泽之通晓万物。
 
 把任意来源（文本 Prompt、PDF、视频、网页、图片、文档）编译成可复用、可维护、可持续演化的 AI Skill
 
