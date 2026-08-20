@@ -1,5 +1,49 @@
 # Changelog
 
+## v2.3.0 — Skill Merge 编译 + State 一等公民 + 结构化断言 (2026-08-20)
+
+**基于毕业生 skill（jiaozi v1.1.0）回流分析的三项能力扩展：① 新编译场景——N 个已有 skill 包合并编译为统一 Context 的单一 skill；② State 进入 IR 一等公民（P1 原则 + State 配套三件 + 持久化模式）；③ 自测用例升级为程序化断言。**
+
+### Added: Skill Merge 编译场景
+- `pass_ingestion.source_type` 新增 `skill_package`；SKILL.md 条件 Pass 表新增 Skill Merge。
+- `references/pass-2-extract.md` 新增 Step 2.2b：合并场景判断（共享领域对象字段 >40% 才合并，仅主题相近建议 INDEX.md 链接图替代）+ 能力去重（dedup_decisions 逐条记录，不静默合并）+ 边界冲突裁决（boundary_conflicts）+ 统一 Context 设计（unified_context_schema）+ 溯源表（模块 ← 来源 skill ← 内化能力）。
+- Decision Gate 新增：无统一 Context 的合并是拼接，回退。
+- Gotcha #11：skill 合并不等于文件拼接。
+
+### Added: State 进入 IR（一等公民）
+- Core Principle P1 的 Skill 组成清单新增 **State**。
+- `schemas/ir-schema.json`：`single_skill_pattern` enum 新增 `stateful-domain-os`；新增 `pass_3_design.state_management`（context_schema_file / validator_script / fixtures / persistence_mode / write_discipline）。
+- `references/pass-3-design.md` 新增 Step 3.4c State Management 设计：**State 配套三件**（schema 定义 + 校验脚本 + fixtures，缺一即 Fail）+ 持久化模式（file_io / paste_yaml / dual，含跨会话状态协议：粘贴优先、无 Context 报 NEW 不假装有记忆）+ 写入纪律。
+- IR 校验新增 #8（stateful-domain-os 须三件套齐全）、#9（skill_package 产物必须选 stateful-domain-os）。
+
+### Added: 结构化自测断言（structured_cases）
+- `self_test_cases` 新增可选 `structured_cases`（id/input/expected_intent/assertions），生成 `tests/cases.yaml` 供自动化执行器消费。
+- 断言操作符：equals / contains / in / regex / exists / count_le / contains_all + `assert_not` 反向断言（防废话模板）。
+- Pass 6 Layer C 新增 C6（行为断言一致性）。
+
+### Added: 知识分层第三维度 — override 层
+- Step 3.4b 分层表新增**特化层（override）**：场景分叉值进 override 文件，只写差异不复制基准值；读取顺序 override 优先于 base。
+- `knowledge_stratification` 新增 `override_layer`；Pass 6 Layer E 新增 E6（override 不复制 base）。
+
+### Added: 模板条件段 — Onboarding 评分 + 平台兼容
+- `templates/skill-md-template.md` 新增两个条件段：Onboarding 完整度评分（量化打分 + 追问轮次上限 + `[基准填充]` 标注，替代无限采访）；平台兼容（运行时能力降级路径 + `[人工评分]` 诚实标注，属 honest-boundaries 的一部分）。
+
+### Changed: Pass 6 检查项扩展
+- Layer B 新增 B13（State 三件套存在且 fixtures 跑通）、B14（merge_plan 契约一致）。
+- SKILL.md frontmatter description 触发词新增 "skill 合并"、"合并 skill"。
+
+### Added: 自动检测 + 自动注入（新 skill 自带 session-context 协议）
+- `references/pass-1-analyze.md` 新增 Step 1.4b **State Requirement Signal Detection**：命中状态信号（cross_session / domain_object / profile / review_reconcile / memory / state_dependent）→ IR `state_signals` 非空。信号判据表含中英识别线索；边界不清默认不判定，记入 unknowns 澄清。
+- `schemas/ir-schema.json`：`pass_1_analyze` 新增 `state_signals` 字段。
+- `references/pass-3-design.md` Step 3.4c 触发条件改为**自动判定**：state_signals 非空 → 必须执行（信号命中就注入，不是可选优化）。
+- `references/pass-4-generate.md` 新增 Step 4.2b **State 三件套生成模板**：core/context.md 三层骨架 + validate_context.py 校验脚本骨架 + valid/invalid fixtures + SKILL.md 跨会话状态章节（file_io / paste_yaml / dual + 粘贴优先 / NEW 不装记忆 / 降级标注）。Step 4.9 Self-Check 新增第 9 项确认三件套齐全。
+
+### Boundary Compliance
+- 无新核心 Pass（Skill Merge 是 Pass 2 内的条件 Step，信号检测是 Pass 1 内 Step），无核心 Pass 删除，架构不变。
+- 改动范围：SKILL.md + 5 references（pass-1/pass-2/pass-3/pass-4/pass-6）+ ir-schema.json + skill-md-template.md + CHANGELOG.md。
+
+---
+
 ## v2.2.0 — Layer E Token 经济性评估 + 知识分层原则 + 白泽命名 (2026-07-25)
 
 **Pass 6 Validate 从四层评估升级为五层评估（新增 Layer E 产物 token 经济性）；Core Principle P2 从"重复内容外置"升级为"知识按变更频率分层"；Skill 中文名命名为「白泽」。零 IR schema 变更，Layer E 是 Pass 6 内部扩展。**

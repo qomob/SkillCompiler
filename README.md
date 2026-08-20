@@ -9,7 +9,7 @@
 把任意来源（文本 Prompt、PDF、视频、网页、图片、文档）编译成可复用、可维护、可持续演化的 AI Skill
 
 [![Author](https://img.shields.io/badge/Author-qomob.ai-blue)](https://qomob.ai)
-[![Version](https://img.shields.io/badge/Version-v2.0.0-green.svg)](https://github.com/qomob/SkillCompiler)
+[![Version](https://img.shields.io/badge/Version-v2.3.0-green.svg)](https://github.com/qomob/SkillCompiler)
 [![Language](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-red.svg)](https://github.com/qomob/SkillCompiler)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Built with](https://img.shields.io/badge/Built_with-SkillForge-violet.svg)](https://github.com/qomob/skillforge)
@@ -42,7 +42,7 @@ Source (Prompt / PDF / Video / URL / Image / Doc)
 |------|--------------|-----------|-------------------|
 | 复用性 | 一次性，每次重写 | 高，但门槛高 | 高，且开箱即用 |
 | 维护成本 | 改一处要改全文 | 需手动同步多处 | 知识外置，模块独立 |
-| 质量保障 | 无 | 靠经验 | 四层评估闭环（含压力测试） |
+| 质量保障 | 无 | 靠经验 | 五层评估闭环（含 Token 经济性 + 压力测试） |
 | 多源输入 | 不支持 | 需手动预处理 | PDF/视频/网页/图片/文档自动摄取 |
 | 平台适配 | 不适用 | 需手动改格式 | 支持 TRAE / Claude / Generic |
 | 诚实边界 | 无 | 容易遗漏 | 强制声明局限性 + 失败模式 |
@@ -68,7 +68,7 @@ Source (Prompt / PDF / Video / URL / Image / Doc)
 2. Pass 1-3 — 分析 → 抽取 → 设计，产出 Skill IR（含自测用例）
 3. Pass 4  — 基于 IR + 平台 profile 生成文件包
 4. Pass 5  — 条件优化（去重 + IR 瘦身）
-5. Pass 6  — 四层评估，输出评分 + GO/NO-GO
+5. Pass 6  — 五层评估，输出评分 + GO/NO-GO
 ```
 
 ### 示例输入
@@ -117,22 +117,24 @@ code-reviewer/
 |------|------|------|
 | **I Ingestion** | ⚠️ 条件 | 多源摄取：PDF/视频/网页/图片/文档 → 结构化内容 + 来源溯源 |
 | **0 Triage** | ✅ 总是 | 判断是否值得编译 + 选平台 + 选模式 + 设 Token 预算 |
-| **1 Analyze** | ✅ 总是 | 理解内容：目标 / 输入输出 / 边界 / 假设 |
+| **1 Analyze** | ✅ 总是 | 理解内容：目标 / 输入输出 / 边界 / 假设 + 状态需求信号检测（Step 1.4b，命中 → state_signals） |
 | **2 Extract** | ✅ 总是 | 能力图谱 + 知识清单（含证据分级）+ 角色矩阵 |
 | **3 Design** | ✅ 总是 | 架构类型 + 模块拆分（含诚实边界）+ Workflow + 目录结构 + 自测用例 |
 | **4 Generate** | ✅ 总是 | 基于 IR + 目标平台 profile 生成符合平台规范的完整 Skill 文件包 |
 | **5 Optimize** | ⚠️ 条件 | 内容 > 500字 / 重复 / multi-agent 时执行 |
-| **6 Validate** | ✅ 总是 | 四层评估：结构（A，含 Compaction Resilience）+ IR 一致性（B，含冲突健康度）+ 触发质量（C，含压力测试）+ 平台合规（D） |
+| **6 Validate** | ✅ 总是 | 五层评估：结构（A，含 Compaction Resilience）+ IR 一致性（B，含冲突健康度与 State/合并校验）+ 触发质量（C，含压力测试与行为断言）+ 平台合规（D）+ Token 经济性（E） |
+| Skill Merge | ❌ 条件 | 输入为 N 个已有 skill 包（source_type=skill_package）：能力去重 + 边界冲突裁决 + 统一 Context，产物为 stateful-domain-os（v2.3.0） |
 | Plugin Discovery | ❌ 条件 | 涉及外部能力（搜索/GitHub/DB/MCP）时执行 |
 | Example Generation | ❌ 条件 | 涉及复杂流程/规则/评分体系时执行 |
 
 ### Pass 6 评分
 
 ```
-skill_quality_score = structural_pass_rate     × 0.2    (Layer A)
-                    + ir_consistency_rate      × 0.3    (Layer B)
-                    + trigger_precision        × 0.25   (Layer C)
-                    + platform_compliance_rate × 0.25   (Layer D)
+skill_quality_score = structural_pass_rate       × 0.15   (Layer A)
+                    + ir_consistency_rate        × 0.25   (Layer B)
+                    + trigger_precision          × 0.20   (Layer C)
+                    + platform_compliance_rate   × 0.20   (Layer D)
+                    + token_efficiency_rate      × 0.20   (Layer E)
 ```
 
 | 分数 | Verdict |
@@ -154,6 +156,9 @@ skill_quality_score = structural_pass_rate     × 0.2    (Layer A)
 - **压缩截断韧性** — 检查生成的 skill 在 harness compaction 后 routing 信息是否仍完整
 - **Token 预算控制** — 设定预算上限，超限时自动降级模式
 - **三层渐进加载** — 生成的 Skill 遵循 L1 触发 / L2 路由 / L3 懒加载分层
+- **Skill 合并编译** — 输入 N 个已有 skill 包（source_type=skill_package）→ 能力去重 + 边界冲突裁决 + 统一 Context，产出单一 stateful-domain-os skill，而非文件拼接（v2.3.0）
+- **State 一等公民 / session-context 自动注入** — Pass 1 状态信号检测（跨会话/领域对象/画像/复盘/记忆）命中 → 自动生成 State 三件套（Context schema + 校验脚本 + fixtures）+ SKILL.md 跨会话章节（file_io/paste_yaml/dual + 粘贴优先/NEW 不装记忆/降级标注），B13 校验缺一 FAIL（v2.3.0）
+- **结构化行为断言** — 自测用例升级为程序化断言（equals/contains/in/regex/exists/count_le/contains_all + assert_not），生成 tests/cases.yaml 供自动化执行器消费（v2.3.0）
 - **元反思审计** — 编译器在关键决策后执行 8 维度自省（问题定义/假设/推理/证据/替代解释/边界/目标/不确定性），不阻塞流程但写入 trace
 
 ---
@@ -203,10 +208,11 @@ skill-compiler/
 
 | 原则 | 含义 |
 |------|------|
-| Prompt 不是 Skill | Skill = Role + Workflow + Knowledge + Decision Logic + Checklist + Rubric + Templates + Examples + Config + References + Output Schema |
-| 重复内容外置 | 超过一次使用的内容 → `references/` |
+| Prompt 不是 Skill | Skill = Role + Workflow + Knowledge + State + Decision Logic + Checklist + Rubric + Templates + Examples + Config + References + Output Schema |
+| 知识按变更频率分层 | 重复内容外置 → `references/`；稳定层（框架/公式/定义）与时效层（策略/事件/口径）分离；场景分叉知识设 override 层（只写差异不复制基准） |
 | Prompt 最小化 | 知识外置，Workflow 独立，配置参数化 |
-| 不照搬 Prompt | 以 Skill 为中心重新设计，保留"能力"而非"文字" |
+| 不照搬 Prompt（也不拼接 Skill 包） | 以 Skill 为中心重新设计，保留"能力"而非"文字"；skill 合并同理——统一 Context 内化能力 |
+| 元反思审计 | 关键决策后 8 维度自省 |
 
 ---
 

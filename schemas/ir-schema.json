@@ -55,8 +55,8 @@
         "executed": { "type": "boolean", "description": "是否执行了摄取阶段" },
         "source_type": {
           "type": "string",
-          "enum": ["direct_prompt", "url", "pdf", "doc", "markdown", "image", "video", "audio", "github_repo", "mixed"],
-          "description": "原始输入来源类型"
+          "enum": ["direct_prompt", "url", "pdf", "doc", "markdown", "image", "video", "audio", "github_repo", "skill_package", "mixed"],
+          "description": "原始输入来源类型。skill_package = 已有 skill 包合并编译（v2.3.0），见 references/pass-2-extract.md Step 2.4"
         },
         "extracted_by": {
           "type": "string",
@@ -126,6 +126,11 @@
           "type": "array",
           "items": { "type": "string" }
         },
+        "state_signals": {
+          "type": "array",
+          "description": "v2.3.0: Pass 1 状态需求信号检测命中的信号（跨会话目标/领域对象追踪/画像/复盘对账/历史记忆）。非空 → Pass 3 自动设 state_management.applicable=true，产物自动带 session-context 协议。",
+          "items": { "type": "string" }
+        },
         "boundary": {
           "type": "object",
           "required": ["in_scope", "out_of_scope"],
@@ -148,6 +153,48 @@
       "type": "object",
       "required": ["capability_graph", "knowledge_inventory", "role_matrix"],
       "properties": {
+        "merge_plan": {
+          "type": "object",
+          "description": "v2.3.0: skill 包合并编译时的合并计划。仅当 pass_ingestion.source_type=skill_package 时存在。Pass 6 Layer B B14 验证合并后产物与之契约一致。",
+          "properties": {
+            "source_skills": {
+              "type": "array",
+              "description": "参与合并的源 skill 清单",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "contributed_modules": { "type": "array", "items": { "type": "string" }, "description": "该源 skill 内化为哪些模块（模块 ← 来源 ← 内化能力）" },
+                  "absorbed_capabilities": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            },
+            "dedup_decisions": {
+              "type": "array",
+              "description": "能力去重决策：多个源 skill 的重叠能力如何处置",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "capability": { "type": "string" },
+                  "winner": { "type": "string", "description": "保留哪个源 skill 的实现" },
+                  "reason": { "type": "string" }
+                }
+              }
+            },
+            "boundary_conflicts": {
+              "type": "array",
+              "description": "源 skill 间 out_of_scope/诚实边界的冲突（如 A 说'处理 X'，B 说'不处理 X'）",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "topic": { "type": "string" },
+                  "resolution": { "type": "string", "description": "合并后采用的裁决 + 理由" }
+                }
+              }
+            },
+            "unified_context_schema": { "type": "boolean", "description": "是否规划统一 Context schema（多源 skill 各有状态时必须 true）" }
+          }
+        },
         "capability_graph": {
           "type": "object",
           "required": ["primary", "secondary", "graph"],
@@ -310,10 +357,30 @@
       "properties": {
         "architecture_type": { "type": "string", "enum": ["single-prompt", "workflow", "multi-agent"] },
         "workflow_pattern": { "type": ["string", "null"] },
-        "single_skill_pattern": { "type": "string", "enum": ["tool-wrapper", "generator", "reviewer", "inversion", "pipeline"] },
+        "single_skill_pattern": { "type": "string", "enum": ["tool-wrapper", "generator", "reviewer", "inversion", "pipeline", "stateful-domain-os"] },
+        "state_management": {
+          "type": "object",
+          "description": "v2.3.0: 有状态 skill（single_skill_pattern=stateful-domain-os 或 skill 需跨会话记忆领域对象时）必填。State 配套三件在 Pass 3 规划、Pass 4 生成、Pass 6 Layer B B13 验证。",
+          "properties": {
+            "applicable": { "type": "boolean", "description": "false = 无状态 skill，跳过" },
+            "context_schema_file": { "type": "string", "description": "Context schema 定义文件（如 core/context.md），三层结构：Static/Working/Learning" },
+            "validator_script": { "type": "string", "description": "校验脚本（如 scripts/validate_context.py），无校验的 schema 只是注释" },
+            "fixtures": {
+              "type": "array",
+              "description": "fixtures：valid + invalid 至少各一",
+              "items": { "type": "string" }
+            },
+            "persistence_mode": {
+              "type": "string",
+              "enum": ["file_io", "paste_yaml", "dual"],
+              "description": "持久化方式：file_io（有文件 I/O 平台自动读写）/ paste_yaml（无文件 I/O 平台对话粘贴）/ dual（两者兼备 + 降级声明）"
+            },
+            "write_discipline": { "type": "string", "description": "写入纪律：只持久化 Stable Fact / Explicit Decision / Validated Learning 三类" }
+          }
+        },
         "self_test_cases": {
           "type": "object",
-          "description": "Pass 3 从 boundary + capability_graph 派生的静态自测用例。Pass 6 Layer B/C 的 test oracle。",
+          "description": "Pass 3 从 boundary + capability_graph 派生的静态自测用例。Pass 6 Layer B/C 的 test oracle。v2.3.0 起可选升级为结构化用例（含程序化断言），供自动化执行器消费。",
           "required": ["positive", "negative", "near_miss"],
           "properties": {
             "positive": {
@@ -330,6 +397,34 @@
               "type": "array",
               "description": "易误触发：capability_graph.secondary 与 primary 的差集",
               "items": { "type": "string" }
+            },
+            "structured_cases": {
+              "type": "array",
+              "description": "v2.3.0: 结构化用例（含路由/输出断言），生成 tests/cases.yaml。workflow/multi-agent 及有路由层的 skill 强烈建议生成；纯触发测试可省略",
+              "items": {
+                "type": "object",
+                "required": ["id", "input"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "input": { "type": "string", "description": "用户输入原文" },
+                  "expected_intent": { "type": "string", "description": "期望路由的 intent（有 Router 的 skill）" },
+                  "expected_modules": { "type": "array", "items": { "type": "string" } },
+                  "assertions": {
+                    "type": "array",
+                    "description": "程序化断言。语义见 references/pass-3-design.md Step 3.9",
+                    "items": {
+                      "type": "object",
+                      "required": ["field", "op"],
+                      "properties": {
+                        "field": { "type": "string", "description": "输出 YAML 中的字段或路由决策字段（intent/module）" },
+                        "op": { "type": "string", "enum": ["equals", "contains", "in", "regex", "exists", "count_le", "contains_all"] },
+                        "value": { "type": ["string", "array"] },
+                        "assert_not": { "type": ["string", "array"], "description": "反向断言：输出中不得出现的短语" }
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         },

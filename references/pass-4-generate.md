@@ -200,6 +200,75 @@ description: "Use when {触发场景}. Triggers on: {触发词1}, {触发词2}, 
 
 ---
 
+## Step 4.2b — State 三件套生成（v2.3.0，条件执行）
+
+**当 `pass_3_design.state_management.applicable=true`（Pass 1 信号自动触发或 stateful-domain-os）时执行。** 生成 State 三件套 + SKILL.md session-context 章节，让产物**自带**跨会话协议。
+
+### ① Context Schema 定义（`core/context.md`）
+
+三层结构骨架：
+
+```markdown
+# {Domain} Context
+
+## 三层结构
+| 层 | 内容 | 更新频率 |
+|----|------|---------|
+| L1 Static | {对象静态事实，如店名/项目名/客户名} | 几乎不变 |
+| L2 Working | {当前任务状态，如本月目标/进行中的活动} | 每次对话 |
+| L3 Learning | {验证过的教训，如哪些做法有效} | 复盘时写 |
+
+## Schema（字段逐一定义类型与更新频率）
+{dynamic: 按 IR 的 domain_object 字段展开，字段名 + 类型 + 更新频率}
+```
+
+### ② 校验脚本（`scripts/validate_context.py`）
+
+骨架（校验字段存在性与类型，退出码 0=合法 / 1=非法）：
+
+```python
+#!/usr/bin/env python3
+"""Validate {skill} Context file against core/context.md schema."""
+import sys
+try:
+    import yaml
+except ImportError:
+    print("ERROR: 需要 PyYAML。安装: pip install pyyaml"); sys.exit(2)
+
+SCHEMA = {L1/Static: {...}, L2/Working: {...}, L3/Learning: {...}}  # dynamic
+def main():
+    ctx = yaml.safe_load(open(sys.argv[1]))
+    for section, fields in SCHEMA.items():
+        for f, t in fields.items():
+            if section not in ctx or f not in ctx[section]:
+                print(f"FAIL: {section}.{f} 缺失"); sys.exit(1)
+    print("Context 合法"); sys.exit(0)
+if __name__ == "__main__":
+    main()
+```
+
+### ③ Fixtures（`tests/fixtures/`）
+
+- `valid_{object}.yaml` — 满足 Schema 的最小合法样例（校验脚本应退出 0）
+- `invalid_{object}.yaml` — 故意缺字段的非法样例（校验脚本应退出 1）
+
+### ④ SKILL.md session-context 章节（注入 SKILL.md）
+
+```markdown
+## 跨会话状态
+
+本 Skill 通过 Context 文件跨会话续接，支持两种模式自动适配：
+
+1. **文件持久化**（Trae/Codex 等有文件 I/O）：自动读写 {context 路径}，用户无感续接。
+2. **对话粘贴**（OpenClaw/Hermes 等无文件 I/O）：对话结束输出 Context YAML，用户下次粘贴回来。
+
+**规则：** 用户手动粘贴的 Context 始终优先；无 Context 时明确告知状态为 `NEW`，不假装有记忆。降级运行（脚本不可用）时输出带 `[人工评分]` 等诚实标注。
+```
+
+**生成顺序：** ①→②→③ 先生成，SKILL.md ④ 引用它们。**Self-Check 第 9 项**确认三件套齐全且被 SKILL.md 引用。
+
+---
+
 ## Step 4.3 — Workflows 生成（workflow/multi-agent only）
 
 对 Pass 3 的 `workflow_steps` 生成 YAML：
@@ -324,5 +393,6 @@ version: 1.0.0
 | 6 | 每个文件被至少一个其他文件引用 | 移除孤立文件或添加引用 |
 | 7 | 未生成目标平台不支持的目录 | 移入 references/ |
 | 8 | 已设置 `meta.platform_profile_applied = true` | 设置标记 |
+| 9 | `state_management.applicable=true` 时 State 三件套齐全（context schema + 校验脚本 + valid/invalid fixtures）且 SKILL.md 含 session-context 章节并引用校验方式 | 回 Step 4.2b 补齐三件套 |
 
 任一 FAIL → 修复后重新检查，全部 PASS → 进入 Pass 5/6。

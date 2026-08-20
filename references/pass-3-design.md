@@ -61,6 +61,7 @@ Prompt 有多个步骤？
 | 自动化代码/内容审查 | reviewer | 分离"检查什么"与"怎么查" |
 | 需求不明确，需先收集 | inversion | Agent 先采访用户 |
 | 复杂的多步骤任务 | pipeline | 强制顺序 + 检查点门控 |
+| 跨会话运营领域对象 / skill 包合并产物 | stateful-domain-os | 统一 Context + Router + 按需模块加载 |
 | 不确定？ | tool-wrapper | 最通用，可演进 |
 
 ---
@@ -104,6 +105,13 @@ Prompt 有多个步骤？
 |----|---------|---------|
 | **稳定层（stable）** | 经营框架、核心公式、指标定义、业务模式、不变量。一两年才调整 | `references/domain-{topic}-stable.md`（瘦文件，百行级，打开即全景概要） |
 | **时效层（timely）** | 策略打法、竞争格局、运营抓手、关键事件、口径规则。每季度/每月变更 | `references/domain-{topic}-timely.md`（按主题组织，跨实体分段管理） |
+| **特化层（override，v2.3.0）** | 同一知识在不同细分场景的取值差异（行业基准因业态而异、平台规则因站点而异） | `references/formats/{variant}.md` 等 override 文件——**只写差异，不复制基准值** |
+
+**override 层规则（通用 base + 特化 override）：**
+
+- base 文件是知识 SSOT，逐值可标置信度；override 文件只声明与 base 的差异项，读取顺序 = override 优先于 base
+- 判定信号：知识含"按 X 而定 / X 类场景不同"的分叉结构时，分叉值进 override，主干进 base
+- 反模式：把基准值复制进每个 override 文件——base 一改，N 个 override 全部漂移
 
 ### 分层原则
 
@@ -120,12 +128,64 @@ Prompt 有多个步骤？
     "applicable": true,
     "stable_layer": ["references/domain-xxx-stable.md"],
     "timely_layer": ["references/domain-xxx-timely.md"],
+    "override_layer": ["references/formats/{variant}.md"],
     "segment_loading": "主题文件按实体段落加载，单次只加载目标段落"
   }
 }
 ```
 
 **不适用时：** `applicable: false`，跳过本步。
+
+---
+
+## Step 3.4c — State Management 设计（v2.3.0，条件执行）
+
+**自动触发条件（按优先级）：**
+
+1. `pass_1_analyze.state_signals` 非空（Pass 1 Step 1.4b 自动检测命中）→ **必须**执行，产物自动带 session-context 协议
+2. `single_skill_pattern=stateful-domain-os`（含 skill_package 合并产物）→ 必须执行
+3. 编译器独立判断 skill 需跨会话记忆领域对象（信号检测之外的新发现）→ 执行，并回填 `state_signals`
+
+三者皆不满足 → 写 `state_management.applicable=false` 跳过。**判定是自动的，不是可选优化——信号命中就注入。**
+
+> State 是一等设计对象，不是 SKILL.md 里的一句话。有状态 skill 的标配是**三件套**，缺一即 Fail（Pass 6 B13）。
+
+### State 配套三件
+
+| # | 产物 | 职责 |
+|---|------|------|
+| 1 | **Context schema 定义**（如 `core/context.md`） | 三层结构：L1 Static（静态事实）/ L2 Working（当前任务）/ L3 Learning（验证过的教训）。字段逐一定义类型与更新频率 |
+| 2 | **校验脚本**（如 `scripts/validate_context.py`） | 校验 context 文件是否符合 schema。无校验的 schema 只是注释 |
+| 3 | **fixtures**（`tests/fixtures/`） | valid + invalid 至少各一，供校验脚本回归 |
+
+### 持久化模式（跨会话状态协议）
+
+| 模式 | 适用平台 | 行为 |
+|------|---------|------|
+| `file_io` | Trae / Codex 等有文件 I/O | 自动读写 `project/{id}/context.yaml`，用户无感续接 |
+| `paste_yaml` | OpenClaw / Hermes 等无文件 I/O | 对话结束输出 Context YAML，用户下次粘贴回来 |
+| `dual` | 需跨平台部署 | 两者兼备，SKILL.md 声明降级路径（如"无文件 I/O 时评分脚本不可用，按基准人工折算并标注"） |
+
+**通用规则：** 用户手动粘贴的 Context 始终优先；无 Context 时明确告知状态为 `NEW`，不得假装有记忆。
+
+### 写入纪律（防 Context 膨胀）
+
+只持久化三类：**Stable Fact**（稳定事实）/ **Explicit Decision**（明确决策）/ **Validated Learning**（验证过的教训）。闲聊评价不写。
+
+### IR 产出
+
+```json
+{
+  "state_management": {
+    "applicable": true,
+    "context_schema_file": "core/context.md",
+    "validator_script": "scripts/validate_context.py",
+    "fixtures": ["tests/fixtures/valid_context.yaml", "tests/fixtures/invalid_context.yaml"],
+    "persistence_mode": "dual",
+    "write_discipline": "Stable Fact / Explicit Decision / Validated Learning"
+  }
+}
+```
 
 ---
 
@@ -290,6 +350,35 @@ skill-name/
 
 `self_test_cases` 写入 IR 的 `pass_3_design.self_test_cases`。Pass 6 Layer B/C 直接读取此字段，无需重新生成用例。
 
+### 结构化升级：程序化断言（v2.3.0，可选）
+
+**workflow/multi-agent 及有路由层的 skill 建议额外产出 `structured_cases`**，生成 `tests/cases.yaml`，把自测用例从描述性字符串升级为自动化执行器可消费的断言：
+
+| 操作符 | 语义 |
+|--------|------|
+| `equals` | 输出字段等于 value |
+| `contains` | 输出字段（字符串/数组）包含 value |
+| `in` | 输出字段 ∈ value 数组 |
+| `regex` | 输出字段匹配正则 |
+| `exists` | 字段存在（含非空） |
+| `count_le` | 数组长度 ≤ value |
+| `contains_all` | 数组包含 value 数组全部元素 |
+| `assert_not` | 反向断言：输出中**不得**出现的短语（防废话模板，如"加强管理"式空话） |
+
+```yaml
+# tests/cases.yaml 单条示例
+- id: R-01
+  input: "最近客流下降怎么办"
+  expected_intent: growth_diagnosis
+  expected_modules: [growth-engine]
+  assertions:
+    - { field: intent, equals: growth_diagnosis }
+    - { field: module, contains: growth-engine }
+  assert_not: ["加强管理", "提升服务"]   # 不得出现的空话短语
+```
+
+断言覆盖建议：路由类（intent/module）+ 输出契约类（YAML 协议字段存在性）+ 边界拒绝类（超范围输入被拒）。Pass 6 Layer C C6 验证产物中的 cases.yaml 与 IR 断言语义一致。
+
 ---
 
 ## Step 3.10 — Skill Interlinking（v2.0 可选）
@@ -353,11 +442,16 @@ skill-name/
 {
   "architecture_type": "single-prompt | workflow | multi-agent",
   "workflow_pattern": "pattern name | null",
-  "single_skill_pattern": "tool-wrapper | generator | reviewer | inversion | pipeline",
+  "single_skill_pattern": "tool-wrapper | generator | reviewer | inversion | pipeline | stateful-domain-os",
+  "state_management": {
+    "applicable": false,
+    "_note": "v2.3.0: stateful-domain-os 或需跨会话记忆时 applicable=true，须含三件套 + 持久化模式 + 写入纪律"
+  },
   "self_test_cases": {
     "positive": ["应触发的用户输入"],
     "negative": ["不应触发的用户输入"],
-    "near_miss": ["易误触发的近邻输入"]
+    "near_miss": ["易误触发的近邻输入"],
+    "structured_cases": [{ "id": "R-01", "input": "...", "expected_intent": "...", "assertions": [{ "field": "intent", "op": "equals", "value": "..." }] }]
   },
   "module_decomposition": {
     "core_prompt": "SKILL.md 核心职责描述",
@@ -412,5 +506,7 @@ Pass 3→4 门控时，对合并后的 IR 执行以下校验：
 | 5 | `pass_3_design.folder_structure` 非空 | 回退 Pass 3 规划目录结构 |
 | 6 | `pass_3_design.self_test_cases.positive` ≥ 3 条 | 回退 Pass 3 Step 3.9 补充 positive 用例 |
 | 7 | `pass_3_design.self_test_cases.negative` ≥ 1 条（或标注 inferred） | 回退 Pass 3 Step 3.9 补充 negative 用例 |
+| 8 | `single_skill_pattern=stateful-domain-os` 时 `state_management.applicable=true` 且三件套字段齐全（schema/validator/fixtures） | 回退 Step 3.4c 补 State 设计 |
+| 9 | skill_package 输入时 `single_skill_pattern=stateful-domain-os`（合并产物必须走统一 Context 形态） | 回退 Step 3.3 重新选型 |
 
 全部 PASS → 进入 Pass 4。

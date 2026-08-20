@@ -89,6 +89,37 @@ Primary Capability（核心能力，1-3 个）
 
 ---
 
+## Step 2.2b — Skill 包合并提取（v2.3.0，条件执行）
+
+**仅当 `pass_ingestion.source_type=skill_package`（输入为 N 个已有 skill 包）时执行。** 普通 prompt 编译跳过。
+
+### 合并场景判断（先判断该不该合并）
+
+| 信号 | 判断 |
+|------|------|
+| 源 skill 服务**同一个领域对象**（同一家店/项目/客户），共享 > 40% 对象字段 | 合并，统一 Context |
+| 源 skill 仅主题相近、服务不同对象 | REJECT 合并——建议生成 skill 链接图（INDEX.md）替代 |
+| 用户在同一会话/相邻会话频繁连续触发这些 skill | 强合并信号 |
+
+### 提取流程
+
+对每个源 skill 包执行：
+
+1. **读取结构** — SKILL.md frontmatter/路由 + references + scripts + tests
+2. **能力提取** — 每个源 skill 的 capability/rule/knowledge 照常进 knowledge_inventory，`source` 标注来源 skill 名
+3. **能力去重** — 重叠能力只保留最优实现，决策写入 `merge_plan.dedup_decisions`（capability + winner + reason），不静默合并
+4. **边界冲突检测** — 源 skill 间 out_of_scope 矛盾（A 处理 X / B 不处理 X）记录到 `merge_plan.boundary_conflicts`，逐条裁决并给出理由。禁止静默丢弃任一边界
+5. **State 合并** — 多个源 skill 各有 Context/state 时，**必须设计统一 Context schema**（`merge_plan.unified_context_schema=true`），字段冲突按"领域对象本质字段优先"合并；各 skill 各存状态是拼接不是合并
+6. **溯源表** — 生成 `merge_plan.source_skills`：模块 ← 来源 skill ← 内化能力 三列表。这是合并编译的 Provenance，写进产物 README
+
+### 原则
+
+- **保留能力而非文字（P4）** — 合并的是各 skill 的能力与知识，不是把 N 份 SKILL.md 拼接成一份长文
+- **统一 Context 是合并的本质** — 无统一 Context 的合并产物 = 路由复杂的拼接包，Pass 6 应判 FAIL
+- **合并后的产物 single_skill_pattern 应为 `stateful-domain-os`**（见 Pass 3 Step 3.3）
+
+---
+
 ## Step 2.3 — Role Matrix 构建
 
 ### 识别现有角色
@@ -147,6 +178,13 @@ Primary Capability（核心能力，1-3 个）
 
 ```json
 {
+  "merge_plan": {
+    "_note": "v2.3.0: 仅 skill_package 输入时存在。字段定义见 schemas/ir-schema.json",
+    "source_skills": [{ "name": "源skill名", "contributed_modules": ["modules/xxx.md"], "absorbed_capabilities": ["..."] }],
+    "dedup_decisions": [{ "capability": "...", "winner": "保留的源skill", "reason": "..." }],
+    "boundary_conflicts": [{ "topic": "...", "resolution": "裁决+理由" }],
+    "unified_context_schema": true
+  },
   "capability_graph": {
     "primary": ["能力1", "能力2"],
     "secondary": ["能力3"],
@@ -202,3 +240,4 @@ Primary Capability（核心能力，1-3 个）
 |------|------|
 | capability_graph.primary 非空 | → Pass 3 |
 | capability_graph 为空 | REJECT — Prompt 没有可提取的能力，不适合做 Skill |
+| skill_package 输入且 merge_plan.unified_context_schema ≠ true | 回退 Step 2.2b 完成 State 合并设计——无统一 Context 的合并是拼接 |

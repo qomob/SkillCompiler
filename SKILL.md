@@ -1,7 +1,7 @@
 ---
 name: skill-compiler
-description: "Use when you need to compile any prompt OR multi-source content (PDF/video/URL/image/doc) into a production-grade, reusable AI Skill. Triggers on: 'prompt to skill', 'compile prompt', '把 prompt 变成 skill', '提示词编译', 'PDF转skill', '视频转skill', '网页转skill', 'skill from prompt', 'skill from document'. Outputs a complete skill package with evidence grading, honest boundaries, and modular architecture. Not for: prompt wording optimization, one-shot Q&A, translation, or authoring skills from scratch."
-version: 2.2.0
+description: "Use when you need to compile any prompt OR multi-source content (PDF/video/URL/image/doc) into a production-grade, reusable AI Skill. Triggers on: 'prompt to skill', 'compile prompt', '把 prompt 变成 skill', '提示词编译', 'PDF转skill', '视频转skill', '网页转skill', 'skill from prompt', 'skill from document', 'skill 合并', '合并 skill'. Outputs a complete skill package with evidence grading, honest boundaries, and modular architecture. Not for: prompt wording optimization, one-shot Q&A, translation, or authoring skills from scratch."
+version: 2.3.0
 ---
 
 # Skill Compiler | 白泽
@@ -26,10 +26,10 @@ version: 2.2.0
 
 | # | 原则 | 含义 |
 |---|------|------|
-| P1 | Prompt 不是 Skill | Skill = Role + Workflow + Knowledge + Decision Logic + Checklist + Rubric + Templates + Examples + Config + References + Output Schema |
-| P2 | 知识按变更频率分层 | 重复内容外置 → `references/`；同一变更频率的知识聚合，稳定层（经营框架/公式/定义，低频变更）与时效层（策略/事件/口径，高频变更）分离存储。混存储导致维护成本指数级增长——更新时效内容易误改稳定内容，文件膨胀让维护者无法定位 |
+| P1 | Prompt 不是 Skill | Skill = Role + Workflow + Knowledge + State + Decision Logic + Checklist + Rubric + Templates + Examples + Config + References + Output Schema |
+| P2 | 知识按变更频率分层 | 重复内容外置 → `references/`；同一变更频率的知识聚合，稳定层（经营框架/公式/定义，低频变更）与时效层（策略/事件/口径，高频变更）分离存储；含场景分叉的知识另设 override 层（只写差异，不复制基准值）。混存储导致维护成本指数级增长——更新时效内容易误改稳定内容，文件膨胀让维护者无法定位 |
 | P3 | Prompt 最小化 | 知识外置，Workflow 独立，配置参数化 |
-| P4 | 不照搬 Prompt | 以 Skill 为中心重新设计，保留"能力"而非"文字" |
+| P4 | 不照搬 Prompt（也不拼接 Skill 包） | 以 Skill 为中心重新设计，保留"能力"而非"文字"；skill 合并同理——统一 Context 内化能力，不是把 N 份 SKILL.md 拼长文 |
 | P5 | 元反思审计 | 在关键决策后自省：问题定义 / 假设 / 推理 / 证据 / 替代解释 / 边界 / 目标 / 不确定性 — 8 维度二次审视 |
 
 📍 [references/meta-reflection.md](references/meta-reflection.md)
@@ -49,7 +49,7 @@ Source (Prompt / PDF / Video / URL / Image / Doc)
 |------|------|------|------|
 | **I Ingestion** | ⚠️ 条件 | 多源摄取：PDF/视频/网页/图片/文档 → 标准化结构化内容 + 来源溯源 | 📍 [references/pass-ingestion.md](references/pass-ingestion.md) |
 | **0 Triage** | ✅ 总是 | 判断是否值得编译 | 内联（决策表见下） |
-| **1 Analyze** | ✅ 总是 | 理解内容：目标/输入输出/边界/假设 | 📍 [references/pass-1-analyze.md](references/pass-1-analyze.md) |
+| **1 Analyze** | ✅ 总是 | 理解内容：目标/输入输出/边界/假设 + **状态需求信号检测**（Step 1.4b，命中 → state_signals） | 📍 [references/pass-1-analyze.md](references/pass-1-analyze.md) |
 | **2 Extract** | ✅ 总是 | 能力图谱 + 知识清单（含证据分级）+ 角色矩阵 | 📍 [references/pass-2-extract.md](references/pass-2-extract.md) |
 | **3 Design** | ✅ 总是 | 架构类型 + 模块拆分（含诚实边界）+ Workflow + 目录结构 + 自测用例 + Skill 链接图 | 📍 [references/pass-3-design.md](references/pass-3-design.md) |
 | **4 Generate** | ✅ 总是 | 生成完整 Skill 文件包 | 📍 [references/pass-4-generate.md](references/pass-4-generate.md) |
@@ -60,6 +60,7 @@ Source (Prompt / PDF / Video / URL / Image / Doc)
 
 | Pass | 触发条件 | 详情 |
 |------|---------|------|
+| Skill Merge | 输入为 N 个已有 skill 包（source_type=skill_package） | 📍 [references/pass-2-extract.md](references/pass-2-extract.md) Step 2.2b — 能力去重 + 边界冲突裁决 + 统一 Context 设计，产物为 stateful-domain-os |
 | Plugin Discovery | Prompt 涉及外部能力（搜索/GitHub/DB/浏览器/MCP） | 📍 [references/plugin-discovery.md](references/plugin-discovery.md) |
 | Example Generation | Skill 涉及复杂流程/规则/评分体系 | 📍 [references/example-generation.md](references/example-generation.md) |
 
@@ -192,7 +193,8 @@ meta.token_budget          = 用户设定或默认值
 8. **Ingestion 不做内容理解（v2.0）** — Pass I 只负责"格式转换 + 来源标注"，不提取能力边界或知识。越界做内容理解会导致 IR 过早膨胀，且与 Pass 1/2 职责重叠。
 9. **OCR/转写结果必须保留置信度（v2.0）** — Ingestion 阶段的提取置信度是 Pass 2 证据分级（primary/secondary/inferred）的判定依据。丢弃置信度等于丢弃证据等级的根基。
 10. **冲突不要在编译过程中静默消除（v2.0）** — 多源输入时，不同来源对同一事实的矛盾表述必须保留并标注（写入 conflicts.md）。强行统一会丢失真实信号，让用户误以为 skill 比实际更可靠。
-11. **Pass I 外部命令执行需遵守安全边界（v2.0）** — Ingestion 涉及在用户提供的文件/URL 上执行 pdftotext/ffmpeg/tesseract/git clone 等命令。用户输入的路径和 URL 必须视为不可信输入，遵守路径限制、不拼接 shell、不执行嵌入代码等约束。📍 详见 [references/pass-ingestion.md](references/pass-ingestion.md) 的 Security Boundaries 章节。
+11. **skill 合并不等于文件拼接（v2.3.0）** — 合并编译最大的失败模式是把 N 份 SKILL.md 的内容堆进一份长文。合并的本质是统一 Context：源 skill 各自的 state 不合并 = 拼接包，Pass 6 B14 判 FAIL。能力去重与边界冲突裁决必须逐条记录在 merge_plan，不允许"看起来重叠就随机留一个"。
+12. **Pass I 外部命令执行需遵守安全边界（v2.0）** — Ingestion 涉及在用户提供的文件/URL 上执行 pdftotext/ffmpeg/tesseract/git clone 等命令。用户输入的路径和 URL 必须视为不可信输入，遵守路径限制、不拼接 shell、不执行嵌入代码等约束。📍 详见 [references/pass-ingestion.md](references/pass-ingestion.md) 的 Security Boundaries 章节。
 
 ---
 

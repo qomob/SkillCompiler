@@ -49,6 +49,27 @@
 
 记录命中的关键词，传给 Pass 2 做深度抽取。
 
+### Step 1.4b — State Requirement Signal Detection（状态需求信号检测，v2.3.0）
+
+**判定"这个 skill 是否需要跨会话状态（session-context 协议）"，不靠猜，靠信号。** 扫描 Prompt/内容，命中以下任一信号即记入 `state_signals`：
+
+| 信号 | 识别线索（中英） | 含义 |
+|------|-----------------|------|
+| `cross_session` | 跨会话、长期陪跑、持续跟踪、续接上次、continue, track over time | 目标跨越单次对话，需要记住之前结果 |
+| `domain_object` | 同一家店/同一个项目/某位客户/某账号反复出现、运营一个对象 | 存在被持续运营的领域对象，对象画像需跨会话保存 |
+| `profile` | 画像、档案、老板画像、客户档案、项目档案、profile, persona | 需要持久化一份"对象画像"供每次会话读取 |
+| `review_reconcile` | 复盘、对账、校准、预测 vs 实际、回填、lessons learned | 需要对比历史承诺与实际结果（calibration_log） |
+| `memory` | 记住、别忘了、上次说的、历史、memory, remember | 显式要求跨会话记忆 |
+| `state_dependent` | 基于之前的结果、根据上次进度、状态依赖 | 输出依赖历史状态而非独立完成 |
+
+**判定规则：**
+
+- 命中 ≥ 1 条 → `state_signals` 非空 → **Pass 3 自动设 `state_management.applicable=true`**，产物自动携带 session-context 协议（State 三件套 + 持久化模式 + 写入纪律）
+- 全部未命中 → `state_signals: []` → 无状态 skill，跳过 State 设计
+- 边界不清（如"帮我写脚本"可能长期化）→ 默认**不**判定为有状态，只把信号记入 `unknowns` 让用户在 Pass 0/3 澄清——避免无状态 skill 被过度设计
+
+**输出：** `state_signals: ["cross_session", "profile"]` 写入 IR 的 `pass_1_analyze`。
+
 ### Step 1.5 — Boundary Definition
 
 明确 Skill 的边界——**不处理什么**：
@@ -110,6 +131,7 @@ Prompt 中隐含但未明说的前提：
     "inferred": false
   },
   "capability_hints": ["命中的能力关键词"],
+  "state_signals": ["命中的状态信号（v2.3.0：cross_session/domain_object/profile/review_reconcile/memory/state_dependent，空数组=无状态）"],
   "boundary": {
     "in_scope": ["处理的场景"],
     "out_of_scope": ["不处理的场景"]

@@ -112,6 +112,8 @@ Pass 1-3 产出的 Skill IR 已经包含评估所需的全部信号：边界、�
 | B10 | `knowledge_inventory[evidence=inferred]`（v2.0） | 推断条目有标注 | evidence=inferred 的条目在生成文件中明确标注为"推断/可能" | 🟡 Medium |
 | B11 | `conflicts`（v2.0） | 冲突未被静默丢弃 | IR 中 conflicts 数组的每个条目在生成文件中都有对应呈现 | 🟠 High |
 | B12 | `conflicts.status`（v2.0） | 冲突健康度 | status=open 占比 < 30%；不存在"连续 3 次编译仍为 open"的冲突 | 🟡 Medium |
+| B13 | `state_management`（v2.3.0） | State 三件套存在且被引用 | applicable=true 时：context schema 文件存在（含三层结构）+ 校验脚本存在且对 fixtures 跑通（valid 通过 / invalid 报错）+ fixtures ≥2；SKILL.md 引用校验方式；持久化模式已声明（dual 时含降级路径） | 🟠 High |
+| B14 | `merge_plan`（v2.3.0） | 合并契约一致 | skill_package 输入时：产物含统一 Context schema（unified_context_schema=true 落实）；dedup_decisions 每条 winner 的能力在产物中唯一呈现；boundary_conflicts 每条裁决在产物 honest-boundaries 或 conflicts.md 有对应；README 含"模块 ← 来源 skill"溯源表 | 🟠 High |
 
 ### B 组执行规则
 
@@ -137,6 +139,7 @@ Pass 1-3 产出的 Skill IR 已经包含评估所需的全部信号：边界、�
 | C3 | near_miss 边界 | 对每个 `self_test_cases.near_miss`，检查 description 是否有明确排斥声明 | 有排斥声明 或 near_miss 为空 | 🟡 Medium |
 | C4 | 压力测试 / 诱饵题（v2.0） | 构造"看似在 scope 内但实际应拒绝"的诱饵输入，检查 description 是否会被误导触发 | 诱饵题误触发率 = 0% | 🟠 High |
 | C5 | 路由/方法选项歧义（v2.2） | 对 workflow/multi-agent skill，检查 Pass 3 `workflow_steps` 中并列可选路径/方法的关键词重叠度；对重叠对检查是否有消歧规则 | 重叠对均有消歧规则，或无重叠（路径数 < 5 时本项 PASS） | 🟡 Medium |
+| C6 | 行为断言一致性（v2.3.0） | 若 IR 含 `structured_cases`，检查产物 `tests/cases.yaml` 是否生成且每条用例的 assertions 操作符在合法集合内（equals/contains/in/regex/exists/count_le/contains_all），expected_intent 与 router 定义一致 | cases.yaml 存在、操作符合法、intent 枚举一致；无 structured_cases 时 PASS（不适用） | 🟡 Medium |
 
 ### C4 压力测试（诱饵题）说明
 
@@ -219,6 +222,7 @@ platform_compliance_rate = D 组通过项数 / D 组总检查项数
 | E3 | 变更频率分层 | 若 `knowledge_stratification.applicable=true`（Pass 3 Step 3.4b），检查稳定层与时效层是否物理分离到不同文件 | 稳定知识（框架/公式/定义）与时效知识（策略/事件/口径）不在同一文件；不适用时 PASS | 🟡 Medium |
 | E4 | 后置触发（非前置全选择） | 若 workflow 有 ≥ 5 个并列可选方法/路径，检查是否采用后置触发（`trigger_signal` 标注）而非全量预加载 | 方法文件按信号触发加载，而非启动时全量加载；路径数 < 5 时 PASS | 🟡 Medium |
 | E5 | 分段加载（大文件粒度控制） | 检查主题文件（覆盖多实体）是否声明了分段加载策略，而非全文件加载 | 单次请求只加载目标实体段落，token 控制在数百以内；无大主题文件时 PASS | 🟡 Medium |
+| E6 | override 层不复制 base（v2.3.0） | 若 Pass 3 规划了 override_layer，检查 override 文件是否只声明差异项（不含 base 完整基准值的复制） | override 文件行数显著小于对应 base 且不含 base 未变值的重复；无 override_layer 时 PASS | 🟡 Medium |
 
 ### E 组执行规则
 
