@@ -33,6 +33,19 @@
 | 从多个案例归纳的规律 | `inferred` | 归纳推理 |
 | 图表的结构化描述 | `secondary` | 视觉理解转述 |
 
+### Creative Track 的 origin 四级（v3.0）
+
+Creative Track 不使用 `evidence` 三级，改用 `source_refs[].origin` 四级（定义见 [creative-ir-schema.json](../schemas/creative-ir-schema.json)）。两套体系回答的问题不同：`evidence` 度量**载体保真度**（转述了几次），`origin` 度量**知识来源方式**（谁说的/是不是猜的）。
+
+| origin | 含义 | 与三级体系的关系 |
+|--------|------|-----------------|
+| `explicit` | 专家原话/作品原文直引（必带 source_text 摘录） | ≈ primary + secondary（载体仍可能转述，confidence 单独记录） |
+| `inferred` | 编译器从上下文推断（跨段落归纳） | = inferred（语义一致） |
+| `heuristic` | 启发式归纳（多个案例的共同模式，如"多份范文都短句开头"） | inferred 的近邻，但归纳自案例而非单点推理；origin 分布影响 meta.confidence |
+| `generated` | 编译器为填补源材料缺口自行生成 | **无三级对应物。General Track 禁用此级别**——知识型 skill 中生成内容必须标注为推断；Creative Track 允许（如补全风格参数），但占比高时拉低 confidence 并触发诚实边界声明 |
+
+**冲突保留规则不变**：源材料中专家前后矛盾的风格主张（"要口语化" vs 后期访谈"要克制"），同样不强行统一——矛盾本身往往就是风格演化的证据，保留并标注时间。
+
 ---
 
 ## 在 Pass 2 中的应用

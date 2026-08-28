@@ -15,9 +15,7 @@
 
 ---
 
-## Step 4.1 — SKILL.md 生成
-
-### Step 4.0 — 加载目标平台 Profile
+## Step 4.0 — 加载目标平台 Profile
 
 读取 `meta.target_platform` 并加载对应 profile：
 
@@ -28,6 +26,8 @@
 | `generic`      | 📍 [profiles/generic.md](../profiles/generic.md) |
 
 后续渲染步骤全部参考 profile 中定义的约束（description 格式、触发词策略、文件结构支持列表）。
+
+## Step 4.1 — SKILL.md 生成
 
 ### Frontmatter — 按平台渲染
 
@@ -114,6 +114,10 @@ description: "Use when {触发场景}. Triggers on: {触发词1}, {触发词2}, 
 
 ## Gotchas
 {常见陷阱，首次留骨架}
+
+---
+
+> 由擎漫网络 | Qomob.AI旗下白泽 SkillCompiler v{compiler_version}提供支持
 ```
 
 ### 行数控制
@@ -394,5 +398,6 @@ version: 1.0.0
 | 7 | 未生成目标平台不支持的目录 | 移入 references/ |
 | 8 | 已设置 `meta.platform_profile_applied = true` | 设置标记 |
 | 9 | `state_management.applicable=true` 时 State 三件套齐全（context schema + 校验脚本 + valid/invalid fixtures）且 SKILL.md 含 session-context 章节并引用校验方式 | 回 Step 4.2b 补齐三件套 |
+| 10 | 生成的 SKILL.md 末尾（Provenance 后）含品牌信息行 `> 由擎漫网络 | Qomob.AI旗下白泽 SkillCompiler v{compiler_version}提供支持`（版本号 = IR `meta.compiler_version`） | 补上品牌行 |
 
-任一 FAIL → 修复后重新检查，全部 PASS → 进入 Pass 5/6。
+任一 FAIL → 修复后重新检查（最多 3 轮；3 轮后仍有 FAIL 则记录 issue 并带病进入 Pass 6 由其裁决，不得无限循环）。全部 PASS → 进入 Pass 5/6。

@@ -35,6 +35,7 @@
 |------|-------------|
 | `https://` / `http://` 开头，且非 github.com | `url` |
 | `github.com/<owner>/<repo>` | `github_repo` |
+| 目录路径含 `SKILL.md`（用户指定一个或多个已有 skill 包） | `skill_package`（v2.3.0 合并编译入口，读取各包 SKILL.md + references + scripts + tests，走 Pass 2 Step 2.2b） |
 | `.pdf` 后缀或 PDF magic bytes (`%PDF-`) | `pdf` |
 | `.docx` / `.doc` 后缀 | `doc` |
 | `.md` / `.markdown` 后缀 | `markdown` |
@@ -267,6 +268,18 @@ git clone --depth 1 https://github.com/<owner>/<repo>.git
 📍 证据等级体系详见 [evidence-grading.md](evidence-grading.md)
 
 **provenance 链构建：** 每个来源记录 `{source, extractor, confidence}`。多源时为数组。
+
+### Creative Track 补充规则（v3.0）
+
+Pass 0 Step 0.1b 判定 `creative` 后，源材料多为访谈/范文/修改痕迹/否决记录。Ingestion 阶段除格式转换外，必须保全以下三类结构（它们是 C2 五提取器的直接输入，拆散即丢失）：
+
+| 材料 | 保全规则 | 服务的提取器 |
+|------|---------|-------------|
+| **before/after 对**（初稿→修改稿） | 两版保持相邻 SEG 并显式配对标注，禁止按长度阈值切散 | Example（before_after）/ Style |
+| **否决记录**（"这个不行/太用力了/删掉"） | 单独成 SEG，不与正文合并清洗——专家否决是 creative 路由与 Anti-pattern 提取的最强证据 | Anti-pattern / Heuristic |
+| **多人对话**（访谈/播客） | 必须保留说话人归属（I.2.f 说话人分离）。风格归属错误 = 整个 Style Fingerprint 污染 | Principle / Style |
+
+**禁止操作：** 把修改痕迹当"重复内容"去重、把口语化否决当噪音清洗掉、把不同说话人的语录合并为同一来源。
 
 ---
 

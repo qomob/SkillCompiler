@@ -65,6 +65,26 @@
 
 ---
 
+## Creative Track 边界声明（v3.0）
+
+创作型 skill 的诚实边界在三类通用声明之外，必须追加以下创作专属声明（来源与检查口径见 [creative-compiler.md](creative-compiler.md)）：
+
+| 声明 | 触发条件 | 内容要求 |
+|------|---------|---------|
+| **材料不足** | `meta.confidence < 0.6`（validate_creative_ir.py WARN 级） | 显式声明"部分能力基于不足材料编译"，列出缺失的材料类型（如：无修改痕迹 → 判断回路中 Critique 维度置信度低） |
+| **风格保真边界** | 总是 | 声明 Style Fingerprint 是统计拟合不是复刻——"像"是分布意义上的像，不保证逐篇神似；风格漂移检测有阈值，阈值内有偏差属正常 |
+| **判断回路边界** | `revision.enabled = true` 时 | 声明 Judge 评分是排序辅助不是绝对真理（Score + Reason + Pairwise 共同作用）；高价值内容建议人工终审 |
+| **风格演化** | 源材料存在明显时期差异（早期与近期主张冲突） | 声明风格快照的取样范围，冲突主张保留并标注时期（联动 evidence-grading.md 冲突保留），声明以哪个时期为准 |
+
+**反模式新增：**
+
+| 反模式 | 说明 | 检测 |
+|--------|------|------|
+| **风格全能声明** | description 声称"完美复刻 XX 风格" | Pass C5 Layer 1：产物声明与 confidence 不符即 FAIL |
+| **隐藏生成内容** | origin=generated 的风格参数未声明 | validate_creative_ir.py 溯源校验 + C5 Layer 2 |
+
+---
+
 ## 在 Pass 3 中的应用
 
 ### 模块规划
