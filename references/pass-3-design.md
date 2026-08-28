@@ -420,7 +420,7 @@ skill-name/
 - 关系图帮助用户理解 skill 间的协作方式，而非孤立使用
 - `contradicts` 关系必须指向 `references/conflicts.md` 的具体条目
 
-### Step 3.11 — Meta-Reflection Checkpoint（v2.1）
+## Step 3.11 — Meta-Reflection Checkpoint（v2.1）
 
 在设计产出 IR 之前，用以下 3 个维度二次审视设计决策。Quick 模式跳过此步。
 

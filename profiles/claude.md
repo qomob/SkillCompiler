@@ -91,6 +91,6 @@ Triggers on:
 ## 已知限制与差异
 
 1. description 支持多行但推荐不超过 500 字符
-2. Semantic matching means triggering is less sensitive to exact keyword alignment than TRAE
+2. 语义匹配使触发的敏感度低于 TRAE——不要求关键词精确对齐
 3. 对 `references/` 目录中文件数量容忍度较高（可 > 20 个）
 4. 支持 agents/ 分离，适合 multi-agent 架构

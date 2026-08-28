@@ -14,7 +14,7 @@ Pass 1-3 产出的 Skill IR 已经包含评估所需的全部信号：边界、�
 
 | Layer | 检查对象 | Oracle | 产出 |
 |-------|---------|--------|------|
-| **A 结构完整性** | 文件结构、模块边界 | 五角色审查清单 | issues 列表 |
+| **A 结构完整性** | 文件结构、模块边界 | 六角色审查清单 | issues 列表 |
 | **B IR 一致性** | 生成文件 vs IR 契约 | Skill IR（Pass 1-3） | 契约违反项 |
 | **C 触发质量** | description 触发准确性 | `self_test_cases`（Pass 3 派生） | 触发精度分数 |
 | **D 平台合规** | 生成文件 vs 平台 profile | `profiles/{platform}.md` | 合规违反项 |
@@ -22,7 +22,7 @@ Pass 1-3 产出的 Skill IR 已经包含评估所需的全部信号：边界、�
 
 ---
 
-## Layer A — 结构完整性（五角色审查）
+## Layer A — 结构完整性（六角色审查）
 
 ### Role 1 — Skill Architect（模块边界）
 
@@ -118,7 +118,7 @@ Pass 1-3 产出的 Skill IR 已经包含评估所需的全部信号：边界、�
 ### B 组执行规则
 
 1. **读取完整 IR** — Pass 1-3 的 IR 是唯一 oracle，不重新推断
-2. **逐字段比对** — B1-B8 逐项检查，不跳过
+2. **逐字段比对** — B1-B14 逐项检查，不跳过
 3. **同义词容忍** — B1 允许同义词匹配（如 "审查" ↔ "review" ↔ "检查"），不要求字面一致
 4. **FAIL 记录差异** — 记录 IR 期望值与文件实际值的差异，供修复
 
@@ -281,7 +281,7 @@ skill_quality_score =
 
 ### Step 6.0 — Meta-Reflection Pre-Check（v2.1）
 
-在启动四层评估前，用以下 3 个维度做最终的编译自省。Quick 模式跳过此步。
+在启动五层评估前，用以下 3 个维度做最终的编译自省。Quick 模式跳过此步。
 
 📍 完整框架见 [meta-reflection.md](meta-reflection.md)
 
@@ -295,11 +295,11 @@ skill_quality_score =
 
 ### Step 6.1 — Layer A 扫描
 
-五角色独立审查，输出 issues 列表。
+六角色独立审查，输出 issues 列表。
 
 ### Step 6.2 — Layer B 契约验证
 
-读取完整 IR，逐字段（B1-B8）比对生成文件。
+读取完整 IR，逐字段（B1-B14）比对生成文件。
 
 ### Step 6.3 — Layer C 触发评测
 
@@ -311,11 +311,11 @@ skill_quality_score =
 
 ### Step 6.4b — Layer E 产物 token 经济性
 
-静态分析产物的知识组织方式，对照 E1-E5 判据。single-prompt skill 对 E2/E4/E5 标 N/A。
+静态分析产物的知识组织方式，对照 E1-E6 判据。single-prompt skill 对 E2/E4/E5 标 N/A。
 
 ### Step 6.5 — 去重合并
 
-四层可能发现相同问题（如 Layer A Role 4 和 Layer C C1 都发现触发词不足）。合并为单条 issue，标注发现层。
+五层可能发现相同问题（如 Layer A Role 4 和 Layer C C1 都发现触发词不足）。合并为单条 issue，标注发现层。
 
 ### Step 6.6 — 计算综合评分
 
@@ -345,7 +345,7 @@ skill_quality_score =
       {
         "id": "A-ISS-001",
         "severity": "critical | high | medium | low",
-        "role": "Skill Architect | Knowledge Engineer | Workflow Designer | Prompt Engineer | Software Architect",
+        "role": "Skill Architect | Knowledge Engineer | Workflow Designer | Prompt Engineer | Software Architect | Compaction Resilience",
         "title": "问题标题",
         "detail": "具体描述",
         "fix": "修复方案",
@@ -400,7 +400,7 @@ skill_quality_score =
     "issues": [
       {
         "id": "E-ISS-001",
-        "check": "E1 | E2 | E3 | E4 | E5",
+        "check": "E1 | E2 | E3 | E4 | E5 | E6",
         "severity": "high | medium",
         "title": "问题标题",
         "detail": "具体描述",
@@ -420,7 +420,7 @@ skill_quality_score =
   "issues": [
     {
       "id": "ISS-001",
-      "layer": "A | B | C | D",
+      "layer": "A | B | C | D | E",
       "severity": "critical | high | medium | low",
       "title": "问题标题",
       "detail": "具体描述",

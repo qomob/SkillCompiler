@@ -378,6 +378,29 @@
             "write_discipline": { "type": "string", "description": "写入纪律：只持久化 Stable Fact / Explicit Decision / Validated Learning 三类" }
           }
         },
+        "knowledge_stratification": {
+          "type": "object",
+          "description": "v2.2: 领域知识变更频率分层。仅 domain_knowledge 密集型 skill 适用（applicable=false 时跳过）。Pass 3 Step 3.4b 产出，Pass 6 Layer E E3 消费。",
+          "properties": {
+            "applicable": { "type": "boolean", "description": "false = 无领域知识分层需求" },
+            "stable_layer": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "稳定层文件（经营框架/公式/定义，低频变更）"
+            },
+            "timely_layer": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "时效层文件（策略/事件/口径，高频变更，按主题聚合）"
+            },
+            "override_layer": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "特化层 override 文件（只写差异，不复制 base 基准值）"
+            },
+            "segment_loading": { "type": "string", "description": "分段加载策略声明" }
+          }
+        },
         "self_test_cases": {
           "type": "object",
           "description": "Pass 3 从 boundary + capability_graph 派生的静态自测用例。Pass 6 Layer B/C 的 test oracle。v2.3.0 起可选升级为结构化用例（含程序化断言），供自动化执行器消费。",

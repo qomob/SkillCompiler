@@ -1,0 +1,834 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Creative Skill IR (创造型 Skill 中间表示)",
+  "description": "Creative Compiler Pass C1-C3 产出的中间表示，是 Pass C4 生成的输入。与 General IR (ir-schema.json) 平行，由 Pass 0 Step 0.1b 的编译目标分类路由决定使用哪套 IR。Pass C3→C4 Decision Gate 校验此 schema（scripts/validate_creative_ir.py）。核心设计：不编译 Prompt，编译 Creative Capability——其中 judgment + revision（判断回路）是从'会模仿'到'会创作'的分水岭，故为必填。",
+  "type": "object",
+  "required": ["meta", "intent", "style", "principles", "examples", "judgment", "revision", "output", "provenance"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["name", "version", "type", "compiler_version", "source_hash", "confidence"],
+      "properties": {
+        "name": { "type": "string", "description": "skill 名称，如 justin-writing-style" },
+        "version": { "type": "string", "description": "skill 语义版本" },
+        "type": {
+          "type": "string",
+          "enum": ["creative-writing", "copywriting", "advertising", "script", "branding", "naming", "founder-ip", "visual-concept", "hybrid"],
+          "description": "创造型 skill 细分类别。hybrid = 主体为创作但含流程性环节，走 Creative Track 编译，流程环节按 General 规范内化"
+        },
+        "compiler_version": { "type": "string", "description": "编译器版本（skill-compiler v3.x）" },
+        "source_hash": { "type": "string", "description": "源材料内容哈希，支持编译可复现" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "target_platform": {
+          "type": "string",
+          "enum": ["trae", "claude", "generic"],
+          "description": "目标宿主平台，与 General IR meta.target_platform 语义一致"
+        },
+        "compilation_mode": {
+          "type": "string",
+          "enum": ["quick", "full"],
+          "description": "creative 编译模式。quick 跳过对抗测试与元反思，full 完整编译"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "整体编译置信度。Compiler 可能'明确知道/推断/猜测'，不能把推断当成事实。低于 0.6 时必须在产物 honest-boundaries 中声明材料不足"
+        }
+      }
+    },
+    "intent": {
+      "type": "object",
+      "description": "Resolved Intent：区分用户表面请求与真实创作意图。用户说'写标题'，实际任务可能是'提高点击+建立人设+避免广告感'",
+      "required": ["primary_goal", "output_type"],
+      "properties": {
+        "primary_goal": { "type": "string", "description": "真实创作目标（非表面任务）" },
+        "secondary_goals": { "type": "array", "items": { "type": "string" } },
+        "audience": { "type": "string", "description": "目标受众画像" },
+        "emotional_target": { "type": "array", "items": { "type": "string" }, "description": "期望唤起的情绪，如 ['认同','好奇']" },
+        "business_goal": { "type": "string", "description": "商业目标（如有）" },
+        "output_type": { "type": "string", "description": "产出类型，如 short-video-script / xiaohongshu-post" },
+        "success_criteria": { "type": "array", "items": { "type": "string" }, "description": "成功标准，如 '前三秒有信息张力'、'避免广告腔'" }
+      }
+    },
+    "context": {
+      "type": "object",
+      "description": "创作场景模型。同一主题在不同场景下完全不同（创业导师 vs 餐饮老板 vs 品牌官方账号）",
+      "properties": {
+        "person": {
+          "type": "object",
+          "properties": {
+            "identity": { "type": "string" },
+            "experience": { "type": "array", "items": { "type": "string" } },
+            "beliefs": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "brand": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "category": { "type": "string" },
+            "positioning": { "type": "string" },
+            "tone": { "type": "string" }
+          }
+        },
+        "audience": {
+          "type": "object",
+          "properties": {
+            "profile": { "type": "string" },
+            "desire": { "type": "array", "items": { "type": "string" } },
+            "pain_point": { "type": "array", "items": { "type": "string" } },
+            "objection": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "platform": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "format": { "type": "string" },
+            "behavior": { "type": "array", "items": { "type": "string" }, "description": "平台用户行为特征" }
+          }
+        },
+        "market": {
+          "type": "object",
+          "properties": {
+            "category": { "type": "string" },
+            "competitors": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "cultural_context": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "knowledge": {
+      "type": "object",
+      "description": "领域知识（可选）。区别于 principles（风格判断原则）与 style（表达方式）：knowledge 承载创作所依赖的领域事实与行业规则——平台分发规则、行业术语、品类常识、法规红线。branding/advertising 类通常必需，creative-writing 类可为空",
+      "properties": {
+        "domain_facts": {
+          "type": "array",
+          "description": "领域事实/规则清单，每条必带 source_refs——领域知识的事实错误比风格偏差代价更高",
+          "items": {
+            "type": "object",
+            "required": ["content", "source_refs"],
+            "properties": {
+              "content": { "type": "string", "description": "事实/规则陈述" },
+              "source_refs": { "type": "array", "items": { "$ref": "#/definitions/sourceReference" } }
+            }
+          }
+        }
+      }
+    },
+    "style": {
+      "type": "object",
+      "description": "Style Model 是 Creative Compiler 最重要的资产。禁止写成'高级/克制/有文学感'式形容词堆砌，必须结构化为可执行的 Style Grammar + 可比较的 Fingerprint",
+      "required": ["fingerprint"],
+      "properties": {
+        "voice": {
+          "type": "object",
+          "properties": {
+            "perspective": { "type": "string", "description": "叙事视角，如 first_person" },
+            "personality": { "type": "array", "items": { "type": "string" } },
+            "emotional_distance": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "sentence": {
+          "type": "object",
+          "properties": {
+            "average_length": { "type": "number", "description": "平均句长（字符或词）" },
+            "variance": { "type": "number", "description": "句长方差——刻意保持参差，均匀句长是 AI 腔信号" },
+            "fragment_rate": { "type": "number", "minimum": 0, "maximum": 1, "description": "短句/碎片句占比" }
+          }
+        },
+        "rhythm": {
+          "type": "object",
+          "properties": {
+            "pace": { "type": "number", "minimum": 0, "maximum": 1 },
+            "pause": { "type": "number", "minimum": 0, "maximum": 1 },
+            "repetition": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "vocabulary": {
+          "type": "object",
+          "properties": {
+            "concrete_ratio": { "type": "number", "minimum": 0, "maximum": 1, "description": "具体词汇占比" },
+            "abstract_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+            "colloquial_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+            "technical_ratio": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "rhetoric": {
+          "type": "object",
+          "properties": {
+            "metaphor": { "type": "number", "minimum": 0, "maximum": 1, "description": "隐喻密度" },
+            "analogy": { "type": "number", "minimum": 0, "maximum": 1 },
+            "rhetorical_question": { "type": "number", "minimum": 0, "maximum": 1 },
+            "exaggeration": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "structure": {
+          "type": "object",
+          "properties": {
+            "opening": { "type": "array", "items": { "type": "string" }, "description": "典型开头方式" },
+            "progression": { "type": "array", "items": { "type": "string" }, "description": "推进方式" },
+            "ending": { "type": "array", "items": { "type": "string" }, "description": "典型收尾方式，如 open_ending" }
+          }
+        },
+        "emotional": {
+          "type": "object",
+          "properties": {
+            "explicitness": { "type": "number", "minimum": 0, "maximum": 1, "description": "情绪外显程度。克制风格 = 低显高隐" },
+            "intensity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "restraint": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "fingerprint": {
+          "type": "object",
+          "description": "Style Fingerprint：将风格压缩为机器可比较的数值向量。生成内容也计算同构 Fingerprint，二者距离 = Style Distance（漂移检测依据）。所有数值 0.0-1.0。v3.1：数值必须由 scripts/style_analyzer.py 实测产出（full 模式校验 fingerprint_provenance），手填指纹会让 Style Drift 检测全程失效",
+          "required": ["sentence_length", "abstraction", "concreteness", "emotional_explicitness", "narrative_density", "ai_pattern_risk"],
+          "properties": {
+            "sentence_length": { "type": "number", "minimum": 0, "maximum": 1 },
+            "sentence_variance": { "type": "number", "minimum": 0, "maximum": 1 },
+            "abstraction": { "type": "number", "minimum": 0, "maximum": 1 },
+            "concreteness": { "type": "number", "minimum": 0, "maximum": 1 },
+            "metaphor_density": { "type": "number", "minimum": 0, "maximum": 1 },
+            "emotional_explicitness": { "type": "number", "minimum": 0, "maximum": 1 },
+            "narrative_density": { "type": "number", "minimum": 0, "maximum": 1 },
+            "rhetorical_density": { "type": "number", "minimum": 0, "maximum": 1 },
+            "repetition": { "type": "number", "minimum": 0, "maximum": 1 },
+            "whitespace": { "type": "number", "minimum": 0, "maximum": 1 },
+            "commercial_explicitness": { "type": "number", "minimum": 0, "maximum": 1 },
+            "ai_pattern_risk": { "type": "number", "minimum": 0, "maximum": 1, "description": "AI 腔风险基线。目标风格本身越接近模板化表达，此值越高，Judge 的 AI-penalty 起点越严" }
+          }
+        },
+        "fingerprint_provenance": {
+          "type": "object",
+          "description": "v3.1：指纹测量溯源。fingerprint 是实测结果还是印象填写，必须可审计。由 scripts/style_analyzer.py 产出。full 模式缺失此字段 → validate_creative_ir.py WARN（非实测指纹）",
+          "properties": {
+            "tool": { "type": "string", "description": "测量工具及版本，如 'style-analyzer 1.0.0'" },
+            "method": { "type": "string", "description": "测量方法（如 heuristic-lexicon），及其局限声明" },
+            "corpus_size": {
+              "type": "object",
+              "properties": {
+                "documents": { "type": "number" },
+                "total_chars": { "type": "number" }
+              }
+            },
+            "corpus_sufficient": { "type": "boolean", "description": "语料是否充足（≥3 篇且 ≥1500 字）。false 时 C2 应降 confidence" },
+            "measured_at": { "type": "string" }
+          }
+        },
+        "measurements": {
+          "type": "object",
+          "description": "v3.2：逐维测量证据。裸数字 0.81 不可验证；value + sample_size + confidence + measurement 才能支撑 Style Drift / Benchmark / Regression。由 style_analyzer 产出，key 与 fingerprint 同构。full 模式缺失 → validate_creative_ir.py FAIL（V1：无测量证据的指纹）",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["value", "measurement"],
+            "properties": {
+              "value": { "type": "number", "minimum": 0, "maximum": 1 },
+              "sample_size": { "type": "number", "description": "测量样本量（字符数/句子数等）" },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "该维度测量置信度——样本不足的维度在 Weighted Style Distance 中降权" },
+              "measurement": { "type": "string", "description": "测量方法名，如 concrete-noun-ratio / sentence-cv" }
+            }
+          }
+        },
+        "style_confidence": {
+          "type": "object",
+          "description": "v3.2：风格模型整体置信度。corpusSize 不足 → 自动降低 overallConfidence 并提高 human-review 建议",
+          "properties": {
+            "corpus_size": { "type": "number", "description": "语料规模（字符）" },
+            "feature_coverage": { "type": "number", "minimum": 0, "maximum": 1, "description": "12 维中有测量证据的占比" },
+            "overall_confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "< 0.6 时 Style Drift 阈值应放宽 + 建议人工复核" }
+          }
+        },
+        "positive_signals": { "type": "array", "items": { "type": "string" }, "description": "出现即加分的行为信号" },
+        "negative_signals": { "type": "array", "items": { "type": "string" }, "description": "出现即扣分的行为信号" }
+      }
+    },
+    "principles": {
+      "type": "array",
+      "minItems": 1,
+      "description": "创作原则（Principle ≠ 规则 Constraint）。'标题不能超过20字'是 Constraint；'先让读者感受到问题，再给答案'是 Principle。原则必须有 statement + rationale + priority，否则退化为口号",
+      "items": {
+        "type": "object",
+        "required": ["id", "statement", "priority", "source_refs"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "statement": { "type": "string", "description": "原则陈述" },
+          "rationale": { "type": "string", "description": "为什么——专家能力最有价值的部分往往藏在'为什么'而非'怎么写'" },
+          "applies_when": { "type": "array", "items": { "type": "string" }, "description": "适用条件。同一原则在不同场景可以有例外（Conflict Resolver 产出）" },
+          "priority": { "type": "string", "enum": ["critical", "high", "medium", "low"] },
+          "examples": { "type": "array", "items": { "type": "string" } },
+          "source_refs": { "type": "array", "items": { "$ref": "#/definitions/sourceReference" } }
+        }
+      }
+    },
+    "heuristics": {
+      "type": "array",
+      "description": "启发式判断：承载专家的模糊经验（'这个标题太用力了'）。不能编译成硬规则，编译成'信号→倾向→纠正'的可执行判断倾向",
+      "items": {
+        "type": "object",
+        "required": ["id", "signals", "tendency", "strength"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "signals": { "type": "array", "items": { "type": "string" }, "description": "触发信号，如 '大量最高级形容词'、'绝对化承诺'" },
+          "tendency": { "type": "string", "enum": ["positive", "negative"] },
+          "strength": { "type": "number", "minimum": 0, "maximum": 1 },
+          "correction": { "type": "string", "description": "纠正方向，如 '将结论改写成具体事实或真实经历'" },
+          "rationale": { "type": "string" },
+          "source_refs": { "type": "array", "items": { "$ref": "#/definitions/sourceReference" } }
+        }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "description": "约束四分类。好的创造来自约束，但约束≠原则",
+      "properties": {
+        "hard": {
+          "type": "array",
+          "description": "硬约束：违反即 reject，如字数上限、禁用词、法务要求",
+          "items": { "$ref": "#/definitions/constraint" }
+        },
+        "soft": {
+          "type": "array",
+          "description": "软约束：违反扣分，权重衡量严重程度",
+          "items": { "$ref": "#/definitions/constraint" }
+        },
+        "contextual": {
+          "type": "array",
+          "description": "场景约束：仅特定平台/品牌场景生效",
+          "items": { "$ref": "#/definitions/constraint" }
+        },
+        "creative": {
+          "type": "array",
+          "description": "创意约束：刻意施加以激发创造力的限制（如'不证明自己优秀，证明别人都一样'）",
+          "items": { "$ref": "#/definitions/constraint" }
+        }
+      }
+    },
+    "examples": {
+      "type": "object",
+      "description": "示例集。价值排序：专家修改前→修改后 ＞ 好例↔坏例对比 ＞ 单纯好例。'重要的不是 AI 看过这句话，而是 AI 知道为什么这句话比另一句话好'",
+      "required": ["positive"],
+      "properties": {
+        "positive": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/creativeExample" }
+        },
+        "negative": {
+          "type": "array",
+          "description": "强烈建议提供。无反例的创造型 skill 必然模板化",
+          "items": { "$ref": "#/definitions/creativeExample" }
+        },
+        "contrastive": {
+          "type": "array",
+          "description": "A 不好 / B 更好 / 为什么——最高价值的示范学习材料",
+          "items": { "$ref": "#/definitions/creativeExample" }
+        },
+        "before_after": {
+          "type": "array",
+          "description": "专家修改前→修改后。直接揭示 Expert Judgment",
+          "items": { "$ref": "#/definitions/creativeExample" }
+        }
+      }
+    },
+    "anti_patterns": {
+      "type": "array",
+      "description": "反模式库。大量 AI 内容失败不是因为不知道怎么做好，而是太容易走向模板化。每个 anti-pattern 必须有 detection_signals + correction，否则无法进入判断回路",
+      "items": {
+        "type": "object",
+        "required": ["id", "detection_signals", "severity"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "detection_signals": { "type": "array", "items": { "type": "string" }, "description": "检测信号，如 '今天给大家分享'、'你是否也有这样的困扰'" },
+          "severity": { "type": "string", "enum": ["critical", "high", "medium", "low"] },
+          "correction": { "type": "string", "description": "纠正方向" },
+          "source_refs": { "type": "array", "items": { "$ref": "#/definitions/sourceReference" } }
+        }
+      }
+    },
+    "creative_strategy": {
+      "type": "object",
+      "description": "创意策略：决定从什么方向创作。Problem→Tension→Insight→Territory→Angle→Idea 链条，适合 advertising/branding/campaign/IP",
+      "properties": {
+        "problem": { "type": "string", "description": "要解决的核心问题" },
+        "tension": { "type": "string", "description": "张力：如'消费者已经听腻了常规品牌话术'" },
+        "insight": { "type": "string", "description": "洞察" },
+        "territories": {
+          "type": "array",
+          "description": "创意母题/方向，如 rebellion / truth / anti_category。Divergence 阶段的发散轴",
+          "items": { "type": "string" }
+        },
+        "angles": { "type": "array", "items": { "type": "string" }, "description": "创意切入角" },
+        "preferred_direction": { "type": "string", "description": "专家偏好方向" }
+      }
+    },
+    "generation": {
+      "type": "object",
+      "description": "发散配置。解决'AI 所谓的10个创意其实只是一个创意换10种说法'——必须强制 Idea Diversity。v3.1：从固定 territory_count≥2 改为边际收益发散——'一个真正强的方向，胜过五个被迫制造出来的方向'，发散到边际收益低于阈值即停，不硬凑数量",
+      "properties": {
+        "divergence": {
+          "type": "object",
+          "properties": {
+            "min_territories": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "description": "母题数下限。naming/advertising 等高发散类型建议 2；品牌定位/个人表达可为 1——强方向不硬凑"
+            },
+            "target_territories": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "母题数目标（默认 3）。达到后评估边际收益，不再为凑数继续发散"
+            },
+            "stop_when_marginal_gain_below": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "边际收益阈值（默认 0.15）：新增母题的最佳候选分数提升低于此值 → 停止发散。假发散（同母题换说法）不产生边际收益，自然被此规则拦截"
+            },
+            "territory_count": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "（v3.0 兼容字段）创意母题数。已由 min/target/marginal-gain 三字段取代，仅作产出记录"
+            },
+            "idea_count_per_territory": { "type": "integer", "minimum": 1 },
+            "variation_count": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "selection": {
+          "type": "object",
+          "properties": {
+            "shortlist_size": { "type": "integer", "minimum": 1, "description": "进入 Critique/Revision 的候选数" }
+          }
+        },
+        "diversity": {
+          "type": "object",
+          "properties": {
+            "minimum_distance": { "type": "number", "minimum": 0, "maximum": 1, "description": "候选间最小差异度，低于此值合并/删除" }
+          }
+        }
+      }
+    },
+    "judgment": {
+      "type": "object",
+      "description": "判断配置（判断回路核心 #1）。Judge 只做 Observe→Score→Compare→Explain，不重新生成内容。评分只是辅助——Score + Reason + Comparison 三者一起工作，不能把创造完全数学化。v3.1：加权评分是 tiebreaker 而非决策者——专家创造能力是 Decision Policy 不是 Score Function，冲突裁决优先走 policy.tradeoffs/decision_rules，无命中时才回退加权分排序",
+      "required": ["dimensions", "weighting"],
+      "properties": {
+        "dimensions": {
+          "type": "array",
+          "minItems": 3,
+          "description": "评分维度。从 intent.success_criteria 与 principles 派生，禁止只设一个笼统 'quality'",
+          "items": { "type": "string" }
+        },
+        "weighting": {
+          "type": "object",
+          "description": "各维度权重。键须与 dimensions 一一对应，权重和 = 1.0（±0.05 容差）",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "pairwise_comparison": {
+          "type": "boolean",
+          "default": true,
+          "description": "成对比较。LLM 的 absolute judgment < pairwise judgment，默认开启"
+        },
+        "minimum_quality": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "质量底线。低于此值直接 reject，不进入 Revision"
+        },
+        "penalties": {
+          "type": "array",
+          "description": "惩罚规则：anti-pattern 命中/AI 腔/风格漂移的扣分项",
+          "items": {
+            "type": "object",
+            "required": ["name", "weight"],
+            "properties": {
+              "name": { "type": "string", "description": "如 ai_pattern_penalty / cliche_penalty / constraint_violation" },
+              "weight": { "type": "number", "minimum": 0, "maximum": 1 },
+              "trigger": { "type": "string", "description": "触发条件描述" }
+            }
+          }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "description": "Creative Policy（v3.1/v3.2）：'这个 skill 在指标冲突时怎么选'。与 Creative IR（描述能力）分离——IR 说'我有哪些维度和权重'，policy 说'维度打架时听谁的'。缺 policy 的 judgment 是评分器，有 policy 的 judgment 才是专家决策器。advertising/branding/naming 类必须提供（validate_creative_ir.py 缺失 FAIL）",
+      "properties": {
+        "priorities": {
+          "type": "array",
+          "description": "全局优先级序：冲突发生时谁优先（不是加权评分的权重——priority 1.0 的维度冲突时压倒 0.5 的，无论评分差距）",
+          "items": {
+            "type": "object",
+            "required": ["dimension", "priority"],
+            "properties": {
+              "dimension": { "type": "string" },
+              "priority": { "type": "number", "minimum": 0, "maximum": 1, "description": "冲突裁决优先级，1.0 最高" },
+              "rationale": { "type": "string" }
+            }
+          }
+        },
+        "tradeoffs": {
+          "type": "array",
+          "description": "取舍规则：当两个维度冲突时保谁弃谁。专家的判断力主要体现在主动放弃一部分指标",
+          "items": {
+            "type": "object",
+            "required": ["when", "prefer", "rationale"],
+            "properties": {
+              "when": {
+                "description": "冲突场景。对象形式（v3.2 推荐）：dimensionA vs dimensionB@context；字符串形式兼容：'originality_vs_clarity@campaign_concept'",
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": ["dimension_a", "dimension_b"],
+                    "properties": {
+                      "dimension_a": { "type": "string" },
+                      "dimension_b": { "type": "string" },
+                      "context": { "type": "string", "description": "限定场景，如 campaign_concept；缺省为全局" }
+                    }
+                  },
+                  { "type": "string" }
+                ]
+              },
+              "prefer": { "type": "string", "description": "优先保住的维度" },
+              "tolerate_loss": { "type": "string", "description": "可接受受损的维度" },
+              "tolerance": { "type": "number", "minimum": 0, "maximum": 1, "description": "可容忍的受损幅度（v3.2）——超出则该取舍规则不再适用，回到全局优先级" },
+              "rationale": { "type": "string", "description": "为什么这样取舍——无 rationale 的取舍规则是拍脑袋" },
+              "source_refs": { "type": "array", "items": { "$ref": "#/definitions/sourceReference" } }
+            }
+          }
+        },
+        "decision_rules": {
+          "type": "array",
+          "description": "决策规则：非加权可表达的条件逻辑（如'候选抓住战略矛盾而总分略低 → 忽略总分差'）",
+          "items": {
+            "type": "object",
+            "required": ["condition", "action"],
+            "properties": {
+              "condition": { "type": "string", "description": "触发条件（可观察）" },
+              "action": {
+                "type": "string",
+                "enum": ["keep", "revise", "reject", "explore_more"],
+                "description": "决策动作（v3.2 枚举化）：keep=保留 / revise=修订 / reject=否决 / explore_more=沿此方向继续发散"
+              },
+              "priority": { "type": "number", "minimum": 0, "maximum": 1, "description": "规则强度——多条命中时高者先执行（v3.2）" },
+              "rationale": { "type": "string" }
+            }
+          }
+        },
+        "exceptions": {
+          "type": "array",
+          "description": "例外：特定 context 下覆盖全局原则/优先级——防止 skill 把原则机械化（'平时避免夸张，但 Campaign Big Idea 可以故意夸张'）",
+          "items": {
+            "type": "object",
+            "required": ["context", "override"],
+            "properties": {
+              "context": { "type": "string", "description": "如 campaign_big_idea / factual_brand_claim" },
+              "override": { "type": "object", "description": "覆盖后的规则（如 exaggeration: allowed），键为被覆盖项，值为覆盖后取值", "additionalProperties": { "type": ["string", "number", "boolean"] } },
+              "rationale": { "type": "string" }
+            }
+          }
+        },
+        "risk_tolerance": {
+          "type": "object",
+          "description": "风险容忍度（v3.2）：创意不追求零风险。Naming/Campaign 与日常文章不应使用同一风险水平",
+          "properties": {
+            "novelty": {
+              "type": "object",
+              "description": "对新颖度的容忍/追求档位",
+              "properties": {
+                "level": { "type": "string", "enum": ["low", "medium", "high"], "description": "low≈0.2 / medium≈0.5 / high≈0.8" },
+                "value": { "type": "number", "minimum": 0, "maximum": 1, "description": "直接数值（与 level 二选一，value 优先）" }
+              }
+            },
+            "ambiguity": {
+              "type": "object",
+              "description": "对模糊性的容忍档位（克制风格常需要留白=容忍高 ambiguity）",
+              "properties": {
+                "level": { "type": "string", "enum": ["low", "medium", "high"] },
+                "value": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            }
+          }
+        },
+        "rejection_reasons": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "一票否决理由（如 generic / derivative / off-brand）——命中即 reject，与加权分无关"
+        }
+      }
+    },
+    "revision": {
+      "type": "object",
+      "description": "修订配置（判断回路核心 #2）。禁止无脑重写（那是重新抽卡）；必须 diagnose→locate→plan→partial fix→re-judge。Revision Gain ≈ 0 说明 Critique/Revision 没真正发挥作用",
+      "required": ["enabled", "max_rounds"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "max_rounds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "普通内容任务 1-3 轮，高价值创意 3-5 轮。禁止无限循环"
+        },
+        "preserve": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "修订默认保护项（如 opening scene / core insight），防止'一改全毁'"
+        },
+        "diagnose_before_rewrite": {
+          "type": "boolean",
+          "default": true,
+          "description": "强制先 Critique 后 Revise。false = 允许直接重写（仅限 quick 模式）"
+        },
+        "rejudge_isolation": {
+          "type": "boolean",
+          "default": true,
+          "description": "v3.2（V3 检查项）：re-judge 必须信息隔离——Judge B 不看 Critique 摘要/预期改善说明/修订 diff。false 会引入 Evaluator Leakage（评价器偏爱自己的修改），full 模式下校验器判 FAIL"
+        },
+        "marginal_gain_threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "v3.2：边际收益停止阈值（默认 0.15）——本轮 Revision Gain 低于此值即停，比单纯 max_rounds 更符合收益递减规律"
+        },
+        "compare_with_previous": {
+          "type": "boolean",
+          "default": true,
+          "description": "每轮修订后与前一版比较，追踪 Revision Gain"
+        },
+        "stop_conditions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "停止条件，如 'revision_gain < 0.2'、'hard constraint 已满足且 score ≥ minimum_quality'"
+        }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "description": "记忆策略。第一阶段只做 Session/Skill 级，不做复杂长期学习",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "capture": {
+          "type": "object",
+          "properties": {
+            "decisions": { "type": "boolean", "description": "记录创作决策" },
+            "rejected_ideas": { "type": "boolean", "description": "记录被否决创意——Skill 的'负知识'（Failure Memory）" },
+            "user_preferences": { "type": "boolean", "description": "记录用户偏好（'太像广告了'→ preference 更新）" },
+            "corrections": { "type": "boolean" }
+          }
+        },
+        "failure_memory": {
+          "type": "array",
+          "description": "Failure Memory：哪些创意被否决、为什么。逐渐形成越来越懂'不要做什么'的 skill",
+          "items": {
+            "type": "object",
+            "required": ["idea", "reasons"],
+            "properties": {
+              "idea": { "type": "string" },
+              "reasons": { "type": "array", "items": { "type": "string" } },
+              "failure_type": {
+                "type": "string",
+                "enum": ["generic", "off-brand", "too-commercial", "too-ai", "boring", "unclear", "redundant"]
+              }
+            }
+          }
+        },
+        "retention": { "type": "string", "description": "保留策略：session / project / skill" }
+      }
+    },
+    "learning": {
+      "type": "object",
+      "description": "Skill Learning Loop（v3.1/v3.2，可选）：Memory ≠ Learning。Memory 记住发生了什么，Learning 把反馈变成能力变化。闭环：feedback → pattern → capability delta → mutation proposal → benchmark → human approval。提案未过 benchmark + 人工批准前，不落盘为新版 skill",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "feedback_log": {
+          "type": "array",
+          "description": "用户/运行时反馈的原始记录（含'太AI了'式模糊反馈），每条须被解析后才算 learning",
+          "items": {
+            "type": "object",
+            "required": ["feedback", "parsed"],
+            "properties": {
+              "feedback": { "type": "string", "description": "原始反馈" },
+              "parsed": { "type": "string", "description": "解析结果：症状→推断偏好→可执行调整。禁止只存原文不解析" },
+              "accepted": { "type": "boolean", "description": "产物是否被采纳" },
+              "timestamp": { "type": "string" }
+            }
+          }
+        },
+        "capability_deltas": {
+          "type": "array",
+          "description": "Skill Evolution 的最小单位（v3.2 结构）：对某个能力对象的原子修改提案。每个 delta 必带证据——无证据的能力变化禁止落盘",
+          "items": {
+            "type": "object",
+            "required": ["target", "operation", "rationale", "evidence"],
+            "properties": {
+              "target": {
+                "type": "string",
+                "enum": ["style", "principle", "heuristic", "decision_policy", "anti_pattern", "judgment", "generation"],
+                "description": "被修改的能力对象类型"
+              },
+              "target_ref": { "type": "string", "description": "具体定位，如 style.fingerprint.commercial_explicitness / heuristics[H1]" },
+              "operation": {
+                "type": "string",
+                "enum": ["add", "remove", "increase", "decrease", "replace"],
+                "description": "原子操作"
+              },
+              "magnitude": { "type": "number", "minimum": 0, "maximum": 1, "description": "变化幅度（increase/decrease 时有意义，如 0.15）" },
+              "rationale": { "type": "string", "description": "为什么改" },
+              "evidence": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "支撑证据引用（feedback id / benchmark report 路径）——空证据的 delta 校验器判 FAIL" }
+            }
+          }
+        },
+        "mutation_proposals": {
+          "type": "array",
+          "description": "Skill Mutation Proposal（v3.2）：一次升级 = 一组 delta 的打包提案。不直接改生产 skill，先进 Proposal 状态",
+          "items": {
+            "type": "object",
+            "required": ["version_from", "version_to", "changes", "reason"],
+            "properties": {
+              "version_from": { "type": "string", "description": "如 2.1.0" },
+              "version_to": { "type": "string", "description": "如 2.2.0" },
+              "changes": {
+                "type": "array",
+                "description": "本提案包含的 capability delta 引用清单",
+                "items": {
+                  "type": "object",
+                  "required": ["type", "target"],
+                  "properties": {
+                    "type": { "type": "string", "description": "同 capability_deltas.target" },
+                    "target": { "type": "string", "description": "同 capability_deltas.target_ref" }
+                  }
+                }
+              },
+              "reason": { "type": "string", "description": "提案动机，如'近20次真实运行中，7次出现同类反馈'" },
+              "benchmark_report": { "type": "string", "description": "Mutation Gate 的 benchmark 对比报告路径（通过后回填）" },
+              "status": {
+                "type": "string",
+                "enum": ["proposed", "benchmark_passed", "approved", "rejected"],
+                "description": "提案状态机：proposed → benchmark_passed（benchmark 无退化）→ approved（人工批准，落盘）| rejected"
+              }
+            }
+          }
+        },
+        "upgrade_gate": {
+          "type": "object",
+          "description": "Mutation Gate：candidate → 新版 skill 的硬性条件（V6 检查项：Learning 必须具备 Regression Gate）",
+          "properties": {
+            "benchmark_required": { "type": "boolean", "default": true, "description": "必须过 benchmark_runner 对比（vNext vs 当前版），核心指标无退化" },
+            "human_approval_required": { "type": "boolean", "default": true, "description": "必须人工批准——LLM 自评的偏好不能代替人的验收" },
+            "min_feedback_count": { "type": "number", "description": "触发一次升级提案所需的最少解析后反馈数（默认 3）" },
+            "mutation_threshold": { "type": "number", "minimum": 0, "maximum": 1, "description": "v3.2：同类反馈占比超过此阈值才触发提案（默认 0.3）——单次反馈即改 skill 是过拟合" }
+          }
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "description": "输出契约。Finalizer 只负责选最终版+整理输出+遵守契约，不能重新发散",
+      "required": ["format"],
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": ["text", "markdown", "json", "script", "structured-content"]
+        },
+        "sections": { "type": "array", "items": { "type": "string" } },
+        "max_length": { "type": "number" },
+        "variants_required": { "type": "integer", "minimum": 1, "description": "要求输出的候选数量（供用户挑选）" },
+        "platform_rules": {
+          "type": "object",
+          "description": "平台特定规则（如小红书话题格式、抖音前3秒规则）"
+        }
+      }
+    },
+    "runtime_profile": {
+      "type": "object",
+      "description": "运行时画像：不同创意类型需要不同运行策略（Writing 重风格迭代，Naming 重发散+判断，Brand Strategy 重上下文+判断）。六项依赖度 0-1，Runtime 据此自动决定发散量/评审强度/案例参考量",
+      "properties": {
+        "creativity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "style_dependency": { "type": "number", "minimum": 0, "maximum": 1 },
+        "context_dependency": { "type": "number", "minimum": 0, "maximum": 1 },
+        "knowledge_dependency": { "type": "number", "minimum": 0, "maximum": 1 },
+        "iteration_dependency": { "type": "number", "minimum": 0, "maximum": 1 },
+        "judgment_dependency": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "runtime_roles": {
+      "type": "object",
+      "description": "v3.1（可选，缺省用 creative-compiler.md §IR 字段 runtime_role 映射表）：字段齐全主义的解药——每个 IR 字段标注它在运行时是否真的被消费。只做 documentation 不参与任何运行时决策的字段应标 documentation，C3 自检与 Pass 5 O10 瘦身据此裁决。键为顶层字段名，值为角色数组",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string", "enum": ["generation", "judgment", "revision", "routing", "evaluation", "documentation"] }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "description": "溯源模型。原则：Compiler 推断出来的东西不能伪装成专家原话",
+      "required": ["source_documents", "extraction_run_id"],
+      "properties": {
+        "source_documents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["document_id", "type"],
+            "properties": {
+              "document_id": { "type": "string" },
+              "type": { "type": "string", "description": "markdown/pdf/interview/existing_skill/chat_transcript 等" },
+              "title": { "type": "string" }
+            }
+          }
+        },
+        "extraction_run_id": { "type": "string", "description": "提取运行 ID" },
+        "compiler_version": { "type": "string" }
+      }
+    }
+  },
+  "definitions": {
+    "sourceReference": {
+      "type": "object",
+      "description": "知识点溯源引用。每个被编译出来的知识点应可追溯到来源文档/段落",
+      "required": ["document_id", "origin", "confidence"],
+      "properties": {
+        "document_id": { "type": "string", "description": "对应 provenance.source_documents[].document_id" },
+        "location": { "type": "string", "description": "段落/页码/时间戳" },
+        "source_text": { "type": "string", "description": "原文摘录（explicit 时必填）" },
+        "origin": {
+          "type": "string",
+          "enum": ["explicit", "inferred", "heuristic", "generated"],
+          "description": "知识来源类型：explicit=原文直引 / inferred=编译器推断 / heuristic=启发式归纳 / generated=模型生成补充。防止 Compiler 自己'编造专家方法'"
+        },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "creativeExample": {
+      "type": "object",
+      "required": ["id", "type", "output"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["positive", "negative", "contrastive", "before-after"]
+        },
+        "input": { "type": "string", "description": "创作输入/情境" },
+        "output": { "type": "string", "description": "作品文本" },
+        "explanation": { "type": "string", "description": "为什么好/为什么坏。缺失 explanation 的示例只是语料，不是示范学习材料" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "linked_principles": { "type": "array", "items": { "type": "string" }, "description": "关联的 principle id——示例与原则互相锚定" },
+        "source_refs": { "type": "array", "items": { "$ref": "#/definitions/sourceReference" } }
+      }
+    },
+    "constraint": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "value": { "type": ["string", "number"] },
+        "weight": { "type": "number", "minimum": 0, "maximum": 1, "description": "soft/creative 约束的权重" },
+        "reason": { "type": "string" }
+      }
+    }
+  }
+}

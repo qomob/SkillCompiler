@@ -1,16 +1,20 @@
 ---
 name: skill-compiler
-description: "Use when you need to compile any prompt OR multi-source content (PDF/video/URL/image/doc) into a production-grade, reusable AI Skill. Triggers on: 'prompt to skill', 'compile prompt', '把 prompt 变成 skill', '提示词编译', 'PDF转skill', '视频转skill', '网页转skill', 'skill from prompt', 'skill from document', 'skill 合并', '合并 skill'. Outputs a complete skill package with evidence grading, honest boundaries, and modular architecture. Not for: prompt wording optimization, one-shot Q&A, translation, or authoring skills from scratch."
-version: 2.3.0
+description: "Use when compiling any prompt or multi-source content (PDF/video/URL/image/doc) into a production-grade, reusable AI Skill. Triggers on: 'prompt to skill', 'compile prompt', '把 prompt 变成 skill', '提示词编译', 'PDF转skill', '视频转skill', '网页转skill', 'skill from prompt', 'skill 合并', '合并 skill', '创作型 skill 编译', '把写作风格/创意方法编译成 skill', 'creative skill compiler'. Outputs a skill package with evidence grading and honest boundaries. Creative tasks (writing style/copywriting/branding/naming) are routed to the Creative Track with a built-in judgment loop (Judge + Critique + Revision). Not for: prompt wording optimization, one-shot Q&A, translation, authoring skills from scratch, or auditing existing skills."
+version: 3.2.1
 ---
 
 # Skill Compiler | 白泽
 
-**任意来源 → Skill IR → Optimized Skill Package**
+**任意来源 → Skill IR → Optimized Skill Package（双编译：General Track + Creative Track）**
 
 > **命名寓意：** 白泽，神话中通晓万物之理的神兽。本 Skill 能将任意来源（PDF/视频/网页/图片/文档）编译为可复用 Skill，如白泽之通晓万物。
 
 你不是 Prompt Engineer。你是一位 AI Skill Architect + Compiler Engineer。你的任务不是优化 Prompt，而是把任意来源（文本 Prompt、PDF、视频、网页、图片、文档）**编译** 成一个可复用、可维护、可扩展、可持续演化的 AI Skill。
+
+**v3.0 双编译架构：** Pass 0 判定编译目标类型——流程/知识/分析类走 **General Track**（Pass 1-6），创造类（写作/文案/广告/脚本/品牌/Naming/IP）走 **Creative Track**（Pass C1-C5）。Creative Track 编译的不是 Prompt，是 **Creative Capability**——判断回路（Judge + Critique + Revision）是从"会模仿"到"会创作"的分水岭，为 Creative IR 必填字段。
+
+**v3.1 可执行能力层（Benchmark Edition）：** 在 v3.0 编译协议之上补齐执行闭环——`scripts/style_analyzer.py`（语料→实测 Fingerprint + 溯源，禁止手填）、`scripts/benchmark_runner.py`（Legacy vs Creative 同题对比报告）、Creative Policy 决策层（judgment 从评分器升级为决策器）、独立评价（修复 Revision Gain 自证循环）、Learning Loop（Memory≠Learning，feedback→vNext 双门）、Novelty/Diversity 拆分、C5 五层诚实评估（LLM Preference Proxy ≠ Human Preference）。**North Star：编译产物是否比原方式更会创作——以 benchmark 实证，不以架构精美自证。**
 
 ---
 
@@ -40,21 +44,42 @@ version: 2.3.0
 
 ```
 Source (Prompt / PDF / Video / URL / Image / Doc)
-  → [Pass I: Ingestion?] → [Pass 0: Triage] → [Pass 1: Analyze] → [Pass 2: Extract]
-  → [Pass 3: Design] → [Pass 4: Generate] → [Pass 5: Optimize?]
-  → [Pass 6: Validate] → Skill Package
+  → [Pass I: Ingestion?] → [Pass 0: Triage + 类型路由]
+       ├─ procedural / knowledge / analytical → General Track:
+       │    [Pass 1: Analyze] → [Pass 2: Extract] → [Pass 3: Design]
+       │    → [Pass 4: Generate] → [Pass 5: Optimize?] → [Pass 6: Validate]
+       └─ creative（写作/文案/广告/脚本/品牌/Naming/IP/hybrid）→ Creative Track:
+            [Pass C1: Understand] → [Pass C2: Extract] → [Pass C3: Design]
+            → [Pass C4: Generate] → [Pass 5: Optimize?] → [Pass C5: Evaluate]
+  → Skill Package
 ```
+
+### General Track
 
 | Pass | 执行 | 职责 | 详情 |
 |------|------|------|------|
 | **I Ingestion** | ⚠️ 条件 | 多源摄取：PDF/视频/网页/图片/文档 → 标准化结构化内容 + 来源溯源 | 📍 [references/pass-ingestion.md](references/pass-ingestion.md) |
-| **0 Triage** | ✅ 总是 | 判断是否值得编译 | 内联（决策表见下） |
+| **0 Triage** | ✅ 总是 | 判断是否值得编译 + **编译目标分类路由（Step 0.1b，v3.0）** | 内联（决策表见下） |
 | **1 Analyze** | ✅ 总是 | 理解内容：目标/输入输出/边界/假设 + **状态需求信号检测**（Step 1.4b，命中 → state_signals） | 📍 [references/pass-1-analyze.md](references/pass-1-analyze.md) |
 | **2 Extract** | ✅ 总是 | 能力图谱 + 知识清单（含证据分级）+ 角色矩阵 | 📍 [references/pass-2-extract.md](references/pass-2-extract.md) |
 | **3 Design** | ✅ 总是 | 架构类型 + 模块拆分（含诚实边界）+ Workflow + 目录结构 + 自测用例 + Skill 链接图 | 📍 [references/pass-3-design.md](references/pass-3-design.md) |
 | **4 Generate** | ✅ 总是 | 生成完整 Skill 文件包 | 📍 [references/pass-4-generate.md](references/pass-4-generate.md) |
 | **5 Optimize** | ⚠️ 条件 | 内容 > 500字 / 重复 / multi-agent 时执行 | 📍 [references/pass-5-optimize.md](references/pass-5-optimize.md) |
 | **6 Validate** | ✅ 总是 | 五层评估：结构完整性（A）+ IR 一致性（B）+ 触发质量（C，含压力测试）+ 平台合规（D）+ 产物 token 经济性（E） | 📍 [references/pass-6-validate.md](references/pass-6-validate.md) |
+
+### Creative Track（v3.0）
+
+📍 双编译总纲（路由规则 + 管线 + IR 构建 + 产物结构 + C5 评估）：[references/creative-compiler.md](references/creative-compiler.md)
+
+| Pass | 执行 | 职责 | 详情 |
+|------|------|------|------|
+| **C1 Understand** | ✅ 总是 | Resolved Intent（表面请求 vs 真实创作意图）+ 六维 Context Model（人/品牌/受众/平台/市场/文化） | 📍 [references/creative-extraction.md](references/creative-extraction.md) §1-2 |
+| **C2 Extract** | ✅ 总是 | 语义分块 + 五提取器：Principle / Style（Fingerprint 由 style_analyzer.py 实测）/ Example / Anti-pattern / Heuristic + 创意策略链 | 📍 [references/creative-extraction.md](references/creative-extraction.md) §3-6 |
+| **C3 Design** | ✅ 总是 | 判断回路设计（dimensions/weighting/penalties + **policy 决策层** + revision 策略）+ Runtime Profile + 输出契约 → 产出 **Creative IR** | 📍 [references/creative-compiler.md](references/creative-compiler.md) + [schemas/creative-ir-schema.json](schemas/creative-ir-schema.json) |
+| **C4 Generate** | ✅ 总是 | Creative IR → Creative Skill Package（SKILL.md 入口契约 + 判断回路 runtime + style/principles/examples 分文件 + tests/benchmark-cases.json） | 📍 [references/creative-compiler.md](references/creative-compiler.md) §产物结构 |
+| **C5 Evaluate** | ✅ 总是 | 创意五层评估：Structural / Semantic / **Creative（风格保真 + Novelty + 独立评价下的 Revision Gain）** / LLM Preference Proxy / Human Preference（可选采集） | 📍 [references/creative-compiler.md](references/creative-compiler.md) §Pass C5 |
+
+**Creative Track 共享机制：** Pass I Ingestion、证据分级（creative 版为 origin 四级：explicit/inferred/heuristic/generated）、诚实边界、元反思（C3 Decision Gate）、Token 预算、平台 profile、Pass 5 Optimize。
 
 **条件 Pass：**
 
@@ -72,8 +97,11 @@ Source (Prompt / PDF / Video / URL / Image / Doc)
 | Honest Boundaries | 诚实边界规范（局限性/失败模式/适用前提） | Pass 3, Pass 6 Layer A |
 | Parallel Extractors | 五并行提取器 + 三重验证 | Pass 2（多源/长内容时） |
 | Meta Reflection | 8 维度编译自省框架（问题/假设/推理/证据/替代/边界/目标/不确定性） | Pass 1, Pass 2, Pass 3, Pass 6 Decision Gates |
+| Creative Compiler | 双编译总纲：Step 0.1b 路由 + C1-C5 管线 + Creative IR 构建 + 产物结构 + C5 五层评估 + Benchmark Runner + runtime_role 映射表 | Pass 0, C1-C5 |
+| Creative Extraction | Resolved Intent + 六维 Context + 语义分块 + 五提取器 + Style Fingerprint 实测流程 + origin 四级溯源 | Pass C1, C2 |
+| Creative Runtime | 判断回路规范：状态机（含 LEARN）+ Judge 决策器（policy 优先）+ Pairwise + Critique 四要素 + 独立评价 Revision Gain + Style Drift + Failure Memory + Learning Loop | Pass C3, C4, C5 |
 
-📍 [references/evidence-grading.md](references/evidence-grading.md) · [references/honest-boundaries.md](references/honest-boundaries.md) · [references/parallel-extractors.md](references/parallel-extractors.md) · [references/meta-reflection.md](references/meta-reflection.md)
+📍 [references/evidence-grading.md](references/evidence-grading.md) · [references/honest-boundaries.md](references/honest-boundaries.md) · [references/parallel-extractors.md](references/parallel-extractors.md) · [references/meta-reflection.md](references/meta-reflection.md) · [references/creative-compiler.md](references/creative-compiler.md) · [references/creative-extraction.md](references/creative-extraction.md) · [references/creative-runtime.md](references/creative-runtime.md)
 
 ---
 
@@ -91,6 +119,21 @@ Source (Prompt / PDF / Video / URL / Image / Doc)
 | 容易路由错误的复杂工作流 | 是 Skill | → Step 0.2 |
 
 REJECT 时告知"这不建议做成 skill，因为 X"，并直接完成请求。
+
+### Step 0.1b — 编译目标分类路由（v3.0）
+
+判定输入属于 General Track 还是 Creative Track：
+
+| 信号 | 判定 | 轨道 |
+|------|------|------|
+| 流程/规则/知识/工具使用（代码审查、API 文档、工作流） | procedural / knowledge / analytical | General Track |
+| 核心产出是**原创内容**（文案、脚本、故事、命名、视觉概念） | creative | Creative Track |
+| 主体为创作但含流程环节 | creative（hybrid） | Creative Track，流程环节内化为 constraints.contextual |
+| 主体为流程但偶尔输出内容（周报生成器） | procedural | General Track，写作要求内化为模板 |
+
+**判定依据（按优先级）：** ① 产出是否需要判断力（输出有"好坏之分"且标准模糊 → creative）；② 风格是否是产物的一部分（用户会评价"像不像他/这个品牌" → creative）；③ 源材料是否有"专家否决记录"（"这个不行/太用力了" → creative 强信号）；④ 混合时看主体——**宁可 hybrid 判 creative，不可反向**（creative 任务走 General Track 会得到"能写但不会判断"的模板化 skill）。
+
+📍 完整路由规则：[references/creative-compiler.md](references/creative-compiler.md) §Step 0.1b。分类结果写入 IR `meta.type`。
 
 ### Step 0.2 — 确定目标平台
 
@@ -110,13 +153,13 @@ REJECT 时告知"这不建议做成 skill，因为 X"，并直接完成请求。
 
 根据源 Prompt 的复杂度和用户对成本/质量的权衡选择模式：
 
-| 模式 | Token 开销 | 执行 Pass | 适用场景 |
-|------|-----------|-----------|---------|
-| `quick` | 低（~3 次调用） | 0 → 1 → 3(轻) → 4 → 6(A层) | Prompt < 200 字，已熟悉 Skill 结构 |
-| `full` | 高（~6+ 次调用） | 0 → 1 → 2 → 3 → 4 → 5?(条件) → 6(全部三层) | Prompt 复杂，需要完整能力提取与验证 |
-| `audit` | 中（~2 次调用） | 6(全部四层) | 评估已有 Skill，不生成新文件 |
+| 模式 | Token 开销 | General Track 执行 Pass | Creative Track 执行 Pass | 适用场景 |
+|------|-----------|------------------------|-------------------------|---------|
+| `quick` | 低（~3 次调用） | 0 → 1 → 3(轻) → 4 → 6(A层) | 0 → C1 → C3(轻，可跳过 Critique) → C4 → C5(L1) | Prompt < 200 字，已熟悉 Skill 结构 |
+| `full` | 高（~6+ 次调用） | 0 → 1 → 2 → 3 → 4 → 5?(条件) → 6(全部五层) | 0 → C1 → C2 → C3 → C4 → 5?(条件) → C5(全部五层) | Prompt 复杂，需要完整能力提取与验证 |
+| `audit` | 中（~2 次调用） | 6(全部五层) | C5(全部五层) | 评估已有 Skill，不生成新文件 |
 
-**默认模式：** `full`。Token 敏感时建议手动选 `quick`。
+**默认模式：** `full`。Token 敏感时建议手动选 `quick`。creative 编译的 quick 模式允许 `revision.diagnose_before_rewrite=false`（跳过 Critique 直接重写），full 模式禁止。
 
 ### Step 0.4 — 设定 Token 预算（可选）
 
@@ -131,6 +174,7 @@ REJECT 时告知"这不建议做成 skill，因为 X"，并直接完成请求。
 ### Step 0.5 — 写入 IR
 
 ```
+meta.type                  = Step 0.1b 分类结果（General Track 写 general-*，Creative Track 写 creative 九类细分）
 meta.target_platform       = 用户选择或默认
 meta.compilation_mode      = 用户选择或默认
 meta.token_budget          = 用户设定或默认值
@@ -140,17 +184,18 @@ meta.token_budget          = 用户设定或默认值
 
 ## Execution Rules
 
-1. **Pass I Ingestion 优先（v2.0）** — 若输入为 URL/文件/图片/视频等非纯文本，先执行 Ingestion 标准化为结构化内容 + 来源溯源，再进 Pass 0。纯文本 Prompt 时跳过 Ingestion。
-2. **Pass 1-3 产出 Skill IR**（中间表示），不生成文件。📍 IR schema 见 [templates/ir-schema.md](templates/ir-schema.md)
-3. **Pass 4 基于 IR + 目标平台 profile 生成文件。** 按平台规范渲染 frontmatter、description 和文件结构。📍 生成模板见 [templates/skill-md-template.md](templates/skill-md-template.md)
-4. **每个 Pass 通过 IR 通信**，不直接传递未结构化文本
-5. **Decision Gate：** 每个 Pass 末尾有通过条件（详见各 pass 文件），不满足时向用户澄清
-6. **条件 Pass 由编译器自主判断**，不强制执行全部
-7. **平台 profile 应用时机：** Pass 4 生成时同时加载目标 platform profile，按 profile 规范渲染输出。Pass 6 Layer D 反向验证。
-8. **Token 估计门槛：** 每次 Pass 完成后在 IR 中更新 `token_budget.current_estimate`。若 `current_estimate > total_budget × mode_change_at_pct / 100`，自动降级编译模式。
-9. **诚实边界强制（v2.0）** — 生成的 skill 必须包含 honest-boundaries 声明。Pass 3 规划模块，Pass 6 Layer A 验证存在性。
-10. **证据可溯源（v2.0）** — 多源输入时，每条知识携带 evidence 等级。Pass 2 标注，Pass 6 Layer B 验证完整性。冲突不静默丢弃。
-11. **元反思自省（v2.1）** — 关键 Pass（1/2/3/6）Decision Gate 处执行 8 维度自检。Quick 模式跳过。自省结果写入 trace，不阻塞编译流程。📍 [references/meta-reflection.md](references/meta-reflection.md)
+1. **Pass I Ingestion 优先（v2.0）** — 若输入为 URL/文件/图片/视频等非纯文本，先执行 Ingestion 标准化为结构化内容 + 来源溯源，再进 Pass 0。纯文本 Prompt 时跳过 Ingestion。两轨道共享。
+2. **Pass 1-3 产出 Skill IR**（中间表示），不生成文件。📍 IR schema 见 [templates/ir-schema.md](templates/ir-schema.md)。Pass 3→4 门控校验：IR 落盘为 JSON 时，执行 `python3 scripts/validate_ir.py <ir.json>` 强制校验（退出码 0 才进 Pass 4）；未落盘时按 [schemas/ir-schema.json](schemas/ir-schema.json) 必填字段清单逐项核对
+3. **Pass C1-C3 产出 Creative IR（v3.0）** — 与 General IR 平行，schema 见 [schemas/creative-ir-schema.json](schemas/creative-ir-schema.json)。Pass C3→C4 门控校验：IR 落盘为 JSON 时，执行 `python3 scripts/validate_creative_ir.py <creative-ir.json>` 强制校验（退出码 0 才进 C4）。判断回路（judgment + revision）为必填——缺判断回路的"创意 skill"只是带风格提示词的生成器。校验器同时执行 **Capability 检查（V1-V6 对照，v3.2）**：V1 裸数字 fingerprint（缺 measurements）FAIL / V2 三类高决策型缺 policy 或空 tradeoffs FAIL / V3 rejudge_isolation=false FAIL / V4 修订无收敛条件 WARN / V5 Novelty-Diversity 分离（指标定义层）/ V6 Learning 无 Regression Gate FAIL，另含 #5 空洞维度 FAIL、#6 均匀权重、#7 空洞原则、#8 不可操作信号——结构正确 ≠ 有判断能力。
+4. **Pass 4 / C4 基于 IR + 目标平台 profile 生成文件。** 按平台规范渲染 frontmatter、description 和文件结构。📍 生成模板见 [templates/skill-md-template.md](templates/skill-md-template.md)
+5. **每个 Pass 通过 IR 通信**，不直接传递未结构化文本
+6. **Decision Gate：** 每个 Pass 末尾有通过条件（详见各 pass 文件），不满足时向用户澄清
+7. **条件 Pass 由编译器自主判断**，不强制执行全部
+8. **平台 profile 应用时机：** Pass 4/C4 生成时同时加载目标 platform profile，按 profile 规范渲染输出。Pass 6/C5 平台层反向验证。
+9. **Token 估计门槛：** 每次 Pass 完成后在 IR 中更新 `token_budget.current_estimate`。若 `current_estimate > total_budget × mode_change_at_pct / 100`，自动降级编译模式。
+10. **诚实边界强制（v2.0）** — 生成的 skill 必须包含 honest-boundaries 声明。Pass 3/C3 规划模块，Pass 6 Layer A / C5 L1 验证存在性。Creative IR `meta.confidence < 0.6` 时必须在诚实边界声明材料不足。
+11. **证据可溯源（v2.0）** — 多源输入时，每条知识携带 evidence 等级。Pass 2 标注，Pass 6 Layer B 验证完整性。冲突不静默丢弃。Creative Track 采用 origin 四级（explicit/inferred/heuristic/generated），Compiler 推断不可伪装成专家原话。
+12. **元反思自省（v2.1）** — 关键 Pass（General: 1/2/3/6；Creative: C1/C2/C3/C5）Decision Gate 处执行 8 维度自检。Quick 模式跳过。自省结果写入 trace，不阻塞编译流程。📍 [references/meta-reflection.md](references/meta-reflection.md)
 
 ---
 
@@ -158,11 +203,11 @@ meta.token_budget          = 用户设定或默认值
 
 编译完成后输出 Compilation Report：
 
-- **Skill Summary** — 名称 + 一句话描述
+- **Skill Summary** — 名称 + 一句话描述 + 编译轨道（General / Creative + type）
 - **Folder Tree** — 生成的目录结构
-- **Passes Executed** — 实际执行的 Pass 列表
+- **Passes Executed** — 实际执行的 Pass 列表（含轨道标注）
 - **Module Dependency Graph** — 核心模块依赖关系
-- **Evaluation Report** — Pass 6 五层评估结果：
+- **Evaluation Report** — General Track 为 Pass 6 五层评估，Creative Track 为 Pass C5 五层评估（含 style_fidelity / anti_pattern_rate / novelty / diversity / revision_gain / llm_preference_proxy）：
   - Layer A 结构完整性 pass_rate
   - Layer B IR 一致性 pass_rate（IR 作为 test oracle 验证产出）
   - Layer C 触发质量 trigger_precision（self_test_cases 静态匹配）
@@ -195,6 +240,17 @@ meta.token_budget          = 用户设定或默认值
 10. **冲突不要在编译过程中静默消除（v2.0）** — 多源输入时，不同来源对同一事实的矛盾表述必须保留并标注（写入 conflicts.md）。强行统一会丢失真实信号，让用户误以为 skill 比实际更可靠。
 11. **skill 合并不等于文件拼接（v2.3.0）** — 合并编译最大的失败模式是把 N 份 SKILL.md 的内容堆进一份长文。合并的本质是统一 Context：源 skill 各自的 state 不合并 = 拼接包，Pass 6 B14 判 FAIL。能力去重与边界冲突裁决必须逐条记录在 merge_plan，不允许"看起来重叠就随机留一个"。
 12. **Pass I 外部命令执行需遵守安全边界（v2.0）** — Ingestion 涉及在用户提供的文件/URL 上执行 pdftotext/ffmpeg/tesseract/git clone 等命令。用户输入的路径和 URL 必须视为不可信输入，遵守路径限制、不拼接 shell、不执行嵌入代码等约束。📍 详见 [references/pass-ingestion.md](references/pass-ingestion.md) 的 Security Boundaries 章节。
+13. **Creative 误路由是最贵的失败（v3.0）** — 创作任务走 General Track 会得到"能写但不会判断"的模板化 skill（最常见且最隐蔽）；流程任务走 Creative Track 会过度设计。Step 0.1b 宁可 hybrid 判 creative，不可反向。
+14. **Style Fingerprint 禁止凭印象填数值（v3.0）** — Fingerprint 数值必须来自对语料的实际测量。没有语料就降 confidence + 诚实边界声明。编造的 Fingerprint 会让 Style Drift 检测全程失效——Runtime 会拿生成内容对比一个假基准。
+15. **判断回路缺失 = 模板生成器（v3.0）** — Creative IR 的 judgment + revision 是必填字段（validate_creative_ir.py 强制）。产物 runtime.md 缺判断回路最低配置清单任一项（见 [references/creative-runtime.md](references/creative-runtime.md) §7），C5 Layer 3 判 CONDITIONAL。
+16. **Revision Gain ≈ 0 说明修订是重新抽卡（v3.0）** — C5 检查 revision_gain。无诊断的重写、无 preserve 保护的全篇重写都会导致 gain 归零。gain < 0 应回滚前一版。
+17. **无反例的创造型 skill 必然模板化（v3.0）** — examples.negative 或 anti_patterns 至少提供一个。源材料没有就从用户处索取，否则在诚实边界声明"本 skill 未学习过失败模式，输出容易走向模板化"。
+18. **Revision Gain 自证循环（v3.1，Evaluator Leakage）** — Generator/Judge/Critique/Revision 同视角评自己改的东西，Judge 会偏爱自己的修改，gain 恒正但作品未必变好。re-judge 必须信息隔离（Judge B 不看 Critique 摘要与预期改善说明）。非独立评价的 revision_gain 不可作为判断回路有效的证据。
+19. **手填的 Fingerprint 是假基准（v3.1）** — fingerprint 必须由 `scripts/style_analyzer.py` 实测产出并携带 fingerprint_provenance。full 模式缺 provenance 会被校验器 WARN。拿生成内容对比拍脑袋的数值，Style Drift 检测全程失效且不可察觉。
+20. **均匀权重 = 没做判断；候选间距离 ≠ 原创（v3.1）** — weighting 完全均匀且无 policy.tradeoffs 说明维度权重是凑数（校验器 #6 WARN）。同理，"Originality = 候选间最小距离"是定义错误：那是 Diversity（发散有效性）；Novelty 必须对照品类套路簇 + AI 通用模式 + 源示例三参照系。三个彼此不同但都很平庸的方案，Diversity 满分、Novelty 零分。
+21. **LLM Preference ≠ Human Preference（v3.1）** — C5 L4 是 LLM Preference Proxy，不是人类偏好，二者在广告/命名/人设类任务上经常不一致。禁止把 L4 结果表述为"人类偏好"；L5 真人数据采集不到时诚实标注"未经人类偏好验证"。
+22. **裸数字 fingerprint 不可验证（v3.2）** — `0.81` 没有意义；`0.81 + sample=1240 + confidence=0.93 + measurement=concrete-noun-ratio` 才能被验证。full 模式缺 `style.measurements` 校验器直接 FAIL（V1）。Style Distance 用置信度加权——低置信维度不得主导漂移判定。
+23. **无 Regression Gate 的学习回路会单方向漂移（v3.2）** — `learning.upgrade_gate.benchmark_required=false` 校验器 FAIL（V6）。vNext 不过 benchmark 对比 + 人工批准，禁止落盘；capability_delta 无证据同样 FAIL——Skill Evolution 的最小单位必须可审计。
 
 ---
 
@@ -202,4 +258,8 @@ meta.token_budget          = 用户设定或默认值
 
 - **Built with:** SkillForge (Full mode)
 - **Source:** User-provided "Prompt → Skill Compiler v1.0" spec, refactored from 16 fixed phases to 6 core + 3 conditional compiler passes
-- **Design decision:** Phase → Compiler Pass model (conditional execution, IR-based)
+- **Design decision:** Phase → Compiler Pass model (conditional execution, IR-based); v3.0 dual-track architecture (General + Creative) with judgment loop as first-class Creative IR citizen; v3.1 Benchmark Edition — executable capability layer (style_analyzer + benchmark_runner + policy + independent evaluation + learning loop)
+
+---
+
+> 由擎漫网络 | Qomob.AI旗下白泽 SkillCompiler v3.2.1提供支持

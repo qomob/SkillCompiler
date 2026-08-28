@@ -85,8 +85,12 @@ version: 1.0.0
 
 ## Provenance
 
-- **Built with:** Skill Compiler v1.0.0
+- **Built with:** Skill Compiler {{compiler_version}}
 - **Source:** {{来源 Prompt 概述}}
+
+---
+
+> 由擎漫网络 | Qomob.AI旗下白泽 SkillCompiler v{{compiler_version}}提供支持
 ```
 
 ---
@@ -102,6 +106,7 @@ version: 1.0.0
 | `{{核心功能一句话}}` | 核心功能 | Pass 1 prompt_summary |
 | `{{file}}.md` | reference 文件名 | Pass 3 reference_tree |
 | `{{output-template}}.md` | 输出模板 | Pass 3 module_decomposition.templates |
+| `{{compiler_version}}` | 编译器版本（写入 Provenance） | Pass 0 IR `meta.compiler_version` |
 | `{{#if ...}}` 条件段 | Onboarding 评分段（Pass 3 Step 3.4c / inversion 类）、平台兼容段（state_management.persistence_mode=dual 或依赖脚本时）按需生成，不适用则整段省略 | Pass 3 IR |
 
 **两个条件段的设计依据：**

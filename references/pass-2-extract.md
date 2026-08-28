@@ -160,7 +160,7 @@ Primary Capability（核心能力，1-3 个）
 - 缺少 Router？（多种输入类型需要路由）
 - 缺少 Formatter？（需要统一输出格式）
 
-### Step 2.4 — Meta-Reflection Checkpoint（v2.1）
+## Step 2.4 — Meta-Reflection Checkpoint（v2.1）
 
 在进入 Pass 3 之前，用证据维度审视知识提取质量。Quick 模式跳过此步。
 

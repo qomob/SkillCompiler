@@ -103,6 +103,22 @@
 
 ---
 
+## Creative Track 优化约束（v3.0）
+
+Creative Track 产物（Pass C4 产出）执行 O1-O10 时，以下内容是**判断回路的组成部分或示范学习材料**，禁止按通用规则优化：
+
+| 通用规则 | Creative 例外 | 理由 |
+|---------|--------------|------|
+| O1：示例移入 examples/ 精简主文件 | ✅ 允许移动，但 **explanation 必须随 example 一起走** | 无解释的示例只是语料，不是示范学习材料 |
+| O3：内容重叠 > 40% 合并 | positive 与 negative 示例、principles 与 anti_patterns **不算重叠** | 正反例与原则/反模式是刻意对偶结构，合并即破坏 |
+| O10：单次使用字段移出 IR | `style.fingerprint`、`style.fingerprint_provenance`、`judgment.weighting`、`policy`（v3.1）、`learning.capability_deltas`（v3.1）保留在 Creative IR 中 | fingerprint/provenance 是 C5 与运行时 Style Drift 的对照基准；policy 是 JUDGE 决策层；capability_deltas 是 vNext 回溯依据——均不可瘦身 |
+| O1/O6：runtime.md 精简拆分 | 判断回路最低配置清单（[creative-runtime.md](creative-runtime.md) §7）任一项不可删减合并 | 删减判断回路 = 退化为模板生成器，这是 Creative Track 最贵的失败 |
+| O10：documentation 字段瘦身 | 先查 IR `runtime_roles`（或 [creative-compiler.md](creative-compiler.md) §映射表缺省值）：纯 documentation 字段可瘦身，参与 generation/judgment/revision/routing/evaluation 的字段保留 | 字段齐全主义的解药——瘦身依据是运行时消费关系，不是字段大小 |
+
+**新增触发条件（Creative Track 专属）：** 产物 runtime.md 缺判断回路最低配置清单 → 不属于优化范畴，直接回退 C4 重新生成。
+
+---
+
 ## 优化执行规则
 
 1. **每次只改一处** — 不批量修改，每次优化后验证不破坏结构

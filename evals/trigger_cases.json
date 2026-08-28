@@ -1,0 +1,83 @@
+{
+  "skill_name": "skill-compiler",
+  "version": "3.2.1",
+  "description": "skill-compiler 自身的 trigger description 静态测试用例。基于 SKILL.md frontmatter description 做关键词匹配，验证 S1.3/S1.4/S1.8/S5.1 rubric。4 个 positive（应触发，覆盖英文编译/中文编译/skill 合并/创作型编译四个核心入口，v3.0 新增 creative 入口）+ 3 个 near-miss negative（近邻误触发，覆盖 description 显式排斥的三类场景：提示词措辞优化、评估已有 skill、skillforge 场景划界）。化解 SkillForge Audit 遗留的 S2.7 WARN。",
+  "negative_case_requirements": {
+    "min_count": 3,
+    "near_miss_ratio": "negative cases 100% 为 near-miss（本 skill 与 skillforge/prompt-engineering 语义强近邻，远邻 case 无检测价值）",
+    "rationale": "AP-10 风险：skill-compiler 的 description 含 'prompt'、'skill'、'提示词' 等高频词，naive 关键词匹配易误触发。near-miss case 验证 'Not for:' 排斥声明的锐利度。"
+  },
+  "trigger_actions_in_description": [
+    "compiling",
+    "compile prompt",
+    "prompt to skill",
+    "把 prompt 变成 skill",
+    "提示词编译",
+    "PDF转skill",
+    "视频转skill",
+    "网页转skill",
+    "skill from prompt",
+    "skill 合并",
+    "合并 skill",
+    "创作型 skill 编译",
+    "creative skill compiler"
+  ],
+  "cases": [
+    {
+      "id": "P01",
+      "input": "compile this prompt into a reusable skill",
+      "category": "positive",
+      "expected_keywords": ["compile"],
+      "severity": "hard"
+    },
+    {
+      "id": "P02",
+      "input": "帮我把这个 prompt 变成 skill",
+      "category": "positive",
+      "expected_keywords": ["把 prompt 变成 skill"],
+      "severity": "hard"
+    },
+    {
+      "id": "P03",
+      "input": "把我这两个 skill 合并成一个统一的 skill",
+      "category": "positive",
+      "expected_keywords": ["skill 合并", "合并 skill"],
+      "severity": "hard"
+    },
+    {
+      "id": "P04",
+      "input": "把我这些访谈资料和范文编译成一个创作型 skill，要有他自己的写作风格",
+      "category": "positive",
+      "expected_keywords": ["创作型"],
+      "severity": "hard",
+      "note": "v3.0 Creative Track 入口：源材料为访谈+范文（多源摄取），编译目标为创作型 skill（写作风格）。应触发并路由到 Creative Track。"
+    },
+    {
+      "id": "N01",
+      "input": "帮我把这段提示词的措辞优化得更清晰",
+      "category": "negative",
+      "near_miss": true,
+      "expected_keywords": [],
+      "severity": "hard",
+      "note": "近邻误触发：输入含 '提示词'（description 有 '提示词编译'），naive CJK 匹配会命中。但意图是措辞优化，属 description 显式排斥的 'prompt wording optimization'。若误触发说明 'Not for:' 边界不够锐利。"
+    },
+    {
+      "id": "N02",
+      "input": "评估一下我这个已有 skill 的质量怎么样，有什么结构问题",
+      "category": "negative",
+      "near_miss": true,
+      "expected_keywords": [],
+      "severity": "hard",
+      "note": "近邻误触发：输入含 'skill'，但意图是评估已有 skill（audit mode 之外的独立评估诉求），属 v2.3.1 新增排斥 'or auditing existing skills'，应路由到 SkillForge。"
+    },
+    {
+      "id": "N03",
+      "input": "从零开始帮我设计一个新的 skill 架构方案",
+      "category": "negative",
+      "near_miss": true,
+      "expected_keywords": [],
+      "severity": "hard",
+      "note": "近邻误触发：从零创作 skill（authoring from scratch，SkillForge L2 场景）而非把既有素材编译成 skill。skill-compiler 的输入是已有 prompt/文档，不是空白需求。description 排斥声明覆盖此场景。"
+    }
+  ]
+}

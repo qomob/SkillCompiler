@@ -181,6 +181,15 @@
 | Pass 2 收尾 | 知识提取后自省 | D4 | pass-2-extract.md Step 2.4 |
 | Pass 3 收尾 | 设计后自省 | D3, D5, D6 | pass-3-design.md Step 3.11 |
 | Pass 6 评前 | 验证前自省 | D4, D7, D8 | pass-6-validate.md Step 6.0 |
+| C1 收尾（v3.0） | Resolved Intent 自省 | D1, D8 | creative-extraction.md §1 |
+| C2 收尾（v3.0） | 提取后自省 | D4 | creative-extraction.md §3-6 |
+| C3 Decision Gate（v3.0） | 判断回路设计自省 | D3, D5, D6 | creative-compiler.md（Pass C3→C4 门控前） |
+
+### Creative Track 自检问题（v3.0）
+
+- **C1（D1）：** primary_goal 是"为什么"层面的答案还是"做什么"的复述？源材料里专家的抱怨（"我不要那种感觉"）是否被听到了？
+- **C2（D4）：** Style Fingerprint 各维度是逐篇范文实测的，还是凭整体印象填的？origin=heuristic 的条目是否被误标为 explicit？
+- **C3（D3/D5）：** judgment.dimensions 是否与 success_criteria 一一对应？是否存在替代的维度划分被诚实评估过？weighting 是否反映了真实优先级（钩子 vs 人设）而非均匀分配（均匀 = 没做判断）？
 
 ---
 

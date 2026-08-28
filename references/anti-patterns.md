@@ -3,7 +3,7 @@
 **加载时机：** 📍 Pass 5 Optimize 执行 O1-O8 检查时加载。
 
 > 本文件定义 Skill Compiler 优化阶段（Pass 5）引用的反模式编号。
-> 完整 13 反模式库见 SkillForge [rubrics/anti-patterns.md](../../skillforge/rubrics/anti-patterns.md)。
+> 完整 17 反模式库见 SkillForge [rubrics/anti-patterns.md](../../skillforge/rubrics/anti-patterns.md)。
 
 ---
 

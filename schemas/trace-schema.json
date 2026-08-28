@@ -21,6 +21,15 @@
       "type": "object",
       "description": "v1.2: 编译配置快照",
       "properties": {
+        "compilation_track": {
+          "type": "string",
+          "enum": ["general", "creative"],
+          "description": "v3.0: 编译轨道，由 Pass 0 Step 0.1b 编译目标分类路由确定"
+        },
+        "target_type": {
+          "type": "string",
+          "description": "v3.0: 编译目标类型。General Track 为 procedural/knowledge/analytical；Creative Track 为 creative-ir-schema.json meta.type 九类细分（creative-writing/copywriting/advertising/script/branding/naming/founder-ip/visual-concept/hybrid）"
+        },
         "target_platform": {
           "type": "string",
           "enum": ["trae", "claude", "generic"],
@@ -54,7 +63,8 @@
         "properties": {
           "pass_id": {
             "type": "string",
-            "enum": ["ingestion", "triage", "analyze", "extract", "design", "generate", "optimize", "validate", "plugin-discovery", "example-generation"]
+            "enum": ["ingestion", "triage", "analyze", "extract", "design", "generate", "optimize", "validate", "plugin-discovery", "example-generation", "c1-understand", "c2-extract", "c3-design", "c4-generate", "c5-evaluate"],
+            "description": "v3.0: c1-c5 为 Creative Track 专属 Pass（understand/extract/design/generate/evaluate），与 General Track 的 analyze/extract/design/generate/validate 平行"
           },
           "status": {
             "type": "string",
@@ -128,8 +138,67 @@
         },
         "evaluation": {
           "type": "object",
-          "description": "Pass 6 四层评估结果（Layer A 结构 / Layer B IR 一致性 / Layer C 触发质量 / Layer D 平台合规）",
+          "description": "General Track 为 Pass 6 五层评估结果（Layer A 结构 / Layer B IR 一致性 / Layer C 触发质量 / Layer D 平台合规 / Layer E token 经济性）；Creative Track 为 Pass C5 五层评估（Structural / Semantic / Creative / LLM Preference Proxy / Human Preference，v3.1）",
           "properties": {
+            "creative_evaluation": {
+              "type": "object",
+              "description": "v3.1: Pass C5 Layer 3（Creative）核心指标，仅 compilation_track=creative 时产出",
+              "properties": {
+                "style_fidelity": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "风格保真度 = 1 - style_distance（generated fingerprint vs target fingerprint，目标指纹须为 style_analyzer 实测值）"
+                },
+                "anti_pattern_rate": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "命中 anti-pattern 的候选占比（越低越好）"
+                },
+                "novelty": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "v3.1: 新颖度——距品类套路簇 + 距 AI 通用模式 + 距源示例三参照系。与 diversity（发散有效性）不可互相冒充"
+                },
+                "novelty_detail": {
+                  "type": "object",
+                  "description": "v3.2: 三参照系分量明细（scripts/novelty_detector.py 产出）",
+                  "properties": {
+                    "candidate_novelty": { "type": "number", "minimum": 0, "maximum": 1, "description": "vs 同批候选（内部候选空间）" },
+                    "category_novelty": { "type": "number", "minimum": 0, "maximum": 1, "description": "vs 品类套路簇（category_patterns.json）" },
+                    "corpus_novelty": { "type": "number", "minimum": 0, "maximum": 1, "description": "vs 源语料实测指纹（历史案例）" }
+                  }
+                },
+                "diversity": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "v3.1: 发散有效性——候选间最小距离（同母题换说法 = 0）"
+                },
+                "revision_gain": {
+                  "type": "number",
+                  "description": "independent_post_score - initial_score（v3.1：独立评价，Judge B 信息隔离）。≈ 0 说明 Critique/Revision 没真正发挥作用；非独立评价的 gain 不可作为判断回路有效的证据"
+                },
+                "llm_preference_proxy": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "v3.1: LLM 成对偏好（proxy）。是模型偏好不是人类偏好，禁止表述为 human preference"
+                },
+                "human_preference": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "v3.1（可选）: 真人偏好数据（L5 采集层）。缺失时不得用 llm_preference_proxy 冒充"
+                },
+                "judgment_loop_complete": {
+                  "type": "boolean",
+                  "description": "判断回路最低配置清单是否齐全（creative-runtime.md §7，v3.1 含决策层与 re-judge 信息隔离项）"
+                }
+              }
+            },
             "layer_a_structural": {
               "type": "object",
               "properties": {
@@ -161,11 +230,20 @@
                 "issues_count": { "type": "number" }
               }
             },
+            "layer_e_token_economy": {
+              "type": "object",
+              "description": "v2.2: 产物 token 经济性（Layer E）",
+              "properties": {
+                "pass_rate": { "type": "number", "minimum": 0, "maximum": 1, "description": "通过项数 / 适用项数（排除 N/A）" },
+                "applicable_checks": { "type": "number", "description": "适用检查项数" },
+                "issues_count": { "type": "number" }
+              }
+            },
             "skill_quality_score": {
               "type": "number",
               "minimum": 0,
               "maximum": 100,
-              "description": "综合评分 = structural×0.2 + ir_consistency×0.3 + trigger_precision×0.25 + platform_compliance×0.25"
+              "description": "综合评分 = structural×0.15 + ir_consistency×0.25 + trigger_precision×0.20 + platform_compliance×0.20 + token_efficiency×0.20"
             }
           }
         }
